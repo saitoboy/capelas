@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { gerarRelatorio, listarMeus, buscarPorId } from '../services/relatorio.service';
 import { AuthRequest } from '../types';
 import { logError } from '../utils/logger';
@@ -53,6 +55,36 @@ export const getById = async (req: AuthRequest, res: Response): Promise<void> =>
 
     const relatorio = await buscarPorId(id, req.user!.sub, req.user!.isAdmin);
     res.json(relatorio);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const getDocx = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ mensagem: 'ID inválido' });
+      return;
+    }
+
+    const relatorio = await buscarPorId(id, req.user!.sub, req.user!.isAdmin);
+
+    if (relatorio.status !== 'CONCLUIDO') {
+      res.status(400).json({ mensagem: `Relatório ainda não concluído (status: ${relatorio.status})` });
+      return;
+    }
+    if (!relatorio.docxPath || !fs.existsSync(relatorio.docxPath)) {
+      res.status(404).json({ mensagem: 'Arquivo .docx não encontrado' });
+      return;
+    }
+
+    const filename = path.basename(relatorio.docxPath);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    fs.createReadStream(relatorio.docxPath).pipe(res);
   } catch (err) {
     handleError(res, err);
   }

@@ -147,6 +147,7 @@ export interface RelatorioPublico {
   analiseLiturgica: string | null;
   status: StatusRelatorio;
   erroMsg: string | null;
+  docxPath: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

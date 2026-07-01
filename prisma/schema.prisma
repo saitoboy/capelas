@@ -61,7 +61,7 @@ model Capela {
   semestreId   Int      @map("semestre_id")
   indice       Int
   data         DateTime @db.Date
-  videoId      String?  @map("video_id") @db.VarChar(20)
+  videoId      String?  @unique @map("video_id") @db.VarChar(20)
   url          String?  @db.VarChar(100)
   textoBiblico String   @map("texto_biblico") @db.VarChar(200)
   tema         String   @db.VarChar(400)

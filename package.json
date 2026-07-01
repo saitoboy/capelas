@@ -18,11 +18,16 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
+    "docx": "^9.7.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "jose": "^6.2.3"
+    "https-proxy-agent": "^9.1.0",
+    "jose": "^6.2.3",
+    "undici": "^8.5.0",
+    "youtube-caption-extractor": "^1.10.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

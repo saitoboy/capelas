@@ -1,6 +1,11 @@
 import 'dotenv/config';
 import express, { Request, Response } from "express";
 import cors from "cors";
+import { initUndiciProxy } from "./utils/groq";
+
+// Registra dispatcher global do undici para que youtube-caption-extractor
+// (que usa fetch nativo) também passe pelo proxy corporativo
+initUndiciProxy();
 
 import { AddressInfo } from "net";
 import { logSuccess, logError } from "./utils/logger";
@@ -8,6 +13,8 @@ import authRoutes from "./routes/auth.routes";
 import personaRoutes from "./routes/persona.routes";
 import relatorioRoutes from "./routes/relatorio.routes";
 import semestreRoutes from "./routes/semestre.routes";
+import capelaRoutes from "./routes/capela.routes";
+import sinopseRoutes from "./routes/sinopse.routes";
 
 const app = express();
 
@@ -22,6 +29,8 @@ app.use("/auth", authRoutes);
 app.use("/persona", personaRoutes);
 app.use("/relatorio", relatorioRoutes);
 app.use("/semestre", semestreRoutes);
+app.use("/capela", capelaRoutes);
+app.use("/sinopse", sinopseRoutes);
 
 const server = app.listen(process.env.PORT || 3003, () => {
   if (server) {
