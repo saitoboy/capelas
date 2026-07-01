@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsnd src/index.ts",
+    "studio": "prisma studio",
+    "dev:full": "concurrently --names \"API,STUDIO\" --prefix-colors \"cyan,magenta\" \"npm run dev\" \"npm run studio\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -27,6 +29,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.0",
+    "concurrently": "^10.0.3",
     "prisma": "^7.8.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"

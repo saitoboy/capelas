@@ -6,6 +6,8 @@ import { AddressInfo } from "net";
 import { logSuccess, logError } from "./utils/logger";
 import authRoutes from "./routes/auth.routes";
 import personaRoutes from "./routes/persona.routes";
+import relatorioRoutes from "./routes/relatorio.routes";
+import semestreRoutes from "./routes/semestre.routes";
 
 const app = express();
 
@@ -18,6 +20,8 @@ app.get("/", (_req: Request, res: Response) => {
 
 app.use("/auth", authRoutes);
 app.use("/persona", personaRoutes);
+app.use("/relatorio", relatorioRoutes);
+app.use("/semestre", semestreRoutes);
 
 const server = app.listen(process.env.PORT || 3003, () => {
   if (server) {
