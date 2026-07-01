@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+enum Curso {
+  TEOLOGIA
+}
+
+// ─── USUÁRIOS ────────────────────────────────────────────────────────────────
+model Usuario {
+  ra        String   @id @db.VarChar(20)
+  nome      String   @db.VarChar(200)
+  senhaHash String   @map("senha_hash") @db.VarChar(255)
+  curso     Curso
+  isAdmin   Boolean  @default(false) @map("is_admin")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  persona    Persona?
+  relatorios Relatorio[]
+
+  @@map("usuarios")
+}
+
+// ─── PERSONA MBTI ─────────────────────────────────────────────────────────────
+model Persona {
+  id        Int      @id @default(autoincrement())
+  alunoRa   String   @unique @map("aluno_ra") @db.VarChar(20)
+  tipo      String   @db.Char(4)
+  nome      String   @db.VarChar(100)
+  tom       String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  aluno Usuario @relation(fields: [alunoRa], references: [ra], onDelete: Cascade)
+
+  @@map("personas")
+}
+
+// ─── SEMESTRES ────────────────────────────────────────────────────────────────
+model Semestre {
+  id              Int      @id @default(autoincrement())
+  label           String   @unique @db.VarChar(50)
+  publishedAfter  DateTime @map("published_after")
+  publishedBefore DateTime @map("published_before")
+  ativo           Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  capelas    Capela[]
+  relatorios Relatorio[]
+
+  @@map("semestres")
+}
+
+// ─── CAPELAS ──────────────────────────────────────────────────────────────────
+model Capela {
+  id           Int      @id @default(autoincrement())
+  semestreId   Int      @map("semestre_id")
+  indice       Int
+  data         DateTime @db.Date
+  videoId      String?  @map("video_id") @db.VarChar(20)
+  url          String?  @db.VarChar(100)
+  textoBiblico String   @map("texto_biblico") @db.VarChar(200)
+  tema         String   @db.VarChar(400)
+  pregador     String   @db.VarChar(200)
+  source       String   @default("youtube") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  semestre Semestre @relation(fields: [semestreId], references: [id], onDelete: Cascade)
+  sinopse  Sinopse?
+
+  @@unique([semestreId, indice], name: "uk_semestre_indice")
+  @@map("capelas")
+}
+
+// ─── SINOPSES ────────────────────────────────────────────────────────────────
+model Sinopse {
+  id       Int      @id @default(autoincrement())
+  capelaId Int      @unique @map("capela_id")
+  texto    String
+  geradoEm DateTime @default(now()) @map("gerado_em")
+
+  capela Capela @relation(fields: [capelaId], references: [id], onDelete: Cascade)
+
+  @@map("sinopses")
+}
+
+// ─── RELATÓRIOS ───────────────────────────────────────────────────────────────
+model Relatorio {
+  id                Int      @id @default(autoincrement())
+  alunoRa           String   @map("aluno_ra") @db.VarChar(20)
+  semestreId        Int      @map("semestre_id")
+  personaTipo       String   @db.Char(4) @map("persona_tipo")
+  personaNome       String   @db.VarChar(100) @map("persona_nome")
+  focoCriativo      String?  @db.VarChar(30) @map("foco_criativo")
+  reflexaoTeologica String?  @map("reflexao_teologica")
+  analiseLiturgica  String?  @map("analise_liturgica")
+  status            String   @default("PENDENTE") @db.VarChar(20)
+  erroMsg           String?  @map("erro_msg")
+  docxPath          String?  @db.VarChar(255) @map("docx_path")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  aluno    Usuario  @relation(fields: [alunoRa], references: [ra], onDelete: Cascade)
+  semestre Semestre @relation(fields: [semestreId], references: [id])
+
+  @@unique([alunoRa, semestreId], name: "uk_aluno_semestre")
+  @@map("relatorios")
+}
