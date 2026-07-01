@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { Curso } from '@prisma/client';
 export { Curso } from '@prisma/client';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -147,7 +148,6 @@ export interface RelatorioPublico {
   analiseLiturgica: string | null;
   status: StatusRelatorio;
   erroMsg: string | null;
-  docxPath: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

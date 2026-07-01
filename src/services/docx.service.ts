@@ -57,8 +57,9 @@ function dataCell(text: string, widthDxa: number, shading: typeof ROW_SHADING_OD
 function textToParagraphs(text: string): Paragraph[] {
   return text.split('\n').map(
     line => new Paragraph({
-      spacing: { after: 160 },
-      children: [new TextRun({ text: line, size: 22, font: 'Arial' })],
+      alignment: AlignmentType.JUSTIFIED,
+      spacing:   { after: 160 },
+      children:  [new TextRun({ text: line, size: 24, font: 'Times New Roman' })],
     }),
   );
 }

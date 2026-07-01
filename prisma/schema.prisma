@@ -100,7 +100,7 @@ model Relatorio {
   analiseLiturgica  String?  @map("analise_liturgica")
   status            String   @default("PENDENTE") @db.VarChar(20)
   erroMsg           String?  @map("erro_msg")
-  docxPath          String?  @db.VarChar(255) @map("docx_path")
+  docxData          String?  @map("docx_data")             // base64 do .docx gerado
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

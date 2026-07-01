@@ -1,6 +1,5 @@
 import { Response } from 'express';
-import fs from 'fs';
-import path from 'path';
+import prisma from '../utils/prisma';
 import { gerarRelatorio, listarMeus, buscarPorId } from '../services/relatorio.service';
 import { AuthRequest } from '../types';
 import { logError } from '../utils/logger';
@@ -70,21 +69,31 @@ export const getDocx = async (req: AuthRequest, res: Response): Promise<void> =>
       return;
     }
 
+    // Busca o relatório validando acesso
     const relatorio = await buscarPorId(id, req.user!.sub, req.user!.isAdmin);
 
     if (relatorio.status !== 'CONCLUIDO') {
       res.status(400).json({ mensagem: `Relatório ainda não concluído (status: ${relatorio.status})` });
       return;
     }
-    if (!relatorio.docxPath || !fs.existsSync(relatorio.docxPath)) {
-      res.status(404).json({ mensagem: 'Arquivo .docx não encontrado' });
+
+    // Busca o base64 direto do banco (não exposto no tipo público)
+    const raw = await prisma.relatorio.findUnique({
+      where:  { id },
+      select: { docxData: true, alunoRa: true, semestreId: true },
+    });
+
+    if (!raw?.docxData) {
+      res.status(404).json({ mensagem: 'Arquivo .docx não encontrado no banco' });
       return;
     }
 
-    const filename = path.basename(relatorio.docxPath);
+    const buffer   = Buffer.from(raw.docxData, 'base64');
+    const filename = `relatorio_${raw.alunoRa}_sem${raw.semestreId}.docx`;
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    fs.createReadStream(relatorio.docxPath).pipe(res);
+    res.send(buffer);
   } catch (err) {
     handleError(res, err);
   }

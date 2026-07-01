@@ -1,6 +1,4 @@
 import prisma from '../utils/prisma';
-import path from 'path';
-import fs from 'fs';
 import { FocoCriativo, MbtiTipo, RelatorioPublico, StatusRelatorio } from '../types';
 import { logSuccess, logError } from '../utils/logger';
 import { callGroq } from '../utils/groq';
@@ -93,19 +91,14 @@ sem markdown, sem títulos, sem listas. Só o texto.
       { reflexao: reflexaoTeologica, liturgica: analiseLiturgica },
     );
 
-    const storageDir = path.join(process.cwd(), 'storage');
-    if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-
-    const filename  = `relatorio_${usuario.ra}_sem${relatorio.semestreId}.docx`;
-    const docxPath  = path.join(storageDir, filename);
-    fs.writeFileSync(docxPath, buffer);
+    const docxData = buffer.toString('base64');
 
     await prisma.relatorio.update({
       where: { id: relatorioId },
       data:  {
         reflexaoTeologica,
         analiseLiturgica,
-        docxPath,
+        docxData,
         status:  'CONCLUIDO',
         erroMsg: null,
       },
@@ -141,7 +134,6 @@ const toPublico = (r: any): RelatorioPublico => ({
   analiseLiturgica:  r.analiseLiturgica,
   status:            r.status as StatusRelatorio,
   erroMsg:           r.erroMsg,
-  docxPath:          r.docxPath ?? null,
   createdAt:         r.createdAt,
   updatedAt:         r.updatedAt,
 });
@@ -184,7 +176,7 @@ export const gerarRelatorio = async (ra: string, semestreId: number): Promise<Re
       analiseLiturgica:  null,
       status:            'GERANDO',
       erroMsg:           null,
-      docxPath:          null,
+      docxData:          null,
     },
     create: {
       alunoRa:     ra,
