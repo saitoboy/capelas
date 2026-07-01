@@ -138,7 +138,7 @@ export const swaggerSpec = {
       get: {
         tags: ['Semestre'],
         summary: 'Buscar semestre por ID',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Semestre encontrado' }, 404: { description: 'Não encontrado' } },
       },
     },
@@ -147,7 +147,7 @@ export const swaggerSpec = {
         tags: ['Semestre'],
         summary: 'Ativar semestre (admin)',
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Semestre ativado' }, 403: { description: 'Acesso negado' } },
       },
     },
@@ -157,7 +157,7 @@ export const swaggerSpec = {
       get: {
         tags: ['Capela'],
         summary: 'Listar capelas do semestre',
-        parameters: [{ name: 'semestreId', in: 'query', required: true, schema: { type: 'integer' }, example: 1 }],
+        parameters: [{ name: 'semestreId', in: 'query', required: true, schema: { type: 'string' }, example: 'uuid-do-semestre' }],
         responses: { 200: { description: 'Array de capelas' } },
       },
     },
@@ -165,14 +165,14 @@ export const swaggerSpec = {
       get: {
         tags: ['Capela'],
         summary: 'Buscar chapel por ID',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Chapel encontrada' }, 404: { description: 'Não encontrada' } },
       },
       delete: {
         tags: ['Capela'],
         summary: 'Deletar chapel (admin)',
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 204: { description: 'Deletada' }, 403: { description: 'Acesso negado' } },
       },
     },
@@ -189,7 +189,7 @@ export const swaggerSpec = {
                 type: 'object',
                 required: ['semestreId', 'indice', 'data', 'textoBiblico', 'tema', 'pregador'],
                 properties: {
-                  semestreId:    { type: 'integer', example: 1 },
+                  semestreId: { type: 'string', example: 'uuid-do-semestre' },
                   indice:        { type: 'integer', example: 1 },
                   data:          { type: 'string', format: 'date', example: '2026-03-05' },
                   textoBiblico:  { type: 'string', example: 'João 3:16' },
@@ -215,7 +215,7 @@ export const swaggerSpec = {
               schema: {
                 type: 'object',
                 required: ['semestreId'],
-                properties: { semestreId: { type: 'integer', example: 1 } },
+                properties: { semestreId: { type: 'string', example: 'uuid-do-semestre' } },
               },
             },
           },
@@ -229,14 +229,14 @@ export const swaggerSpec = {
       get: {
         tags: ['Sinopse'],
         summary: 'Buscar sinopse de uma chapel',
-        parameters: [{ name: 'capelaId', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'capelaId', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Sinopse encontrada' }, 404: { description: 'Ainda não gerada' } },
       },
       post: {
         tags: ['Sinopse'],
         summary: 'Gerar sinopse para uma chapel (admin)',
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'capelaId', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'capelaId', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 201: { description: '{ id, capelaId, texto, geradoEm }' } },
       },
     },
@@ -318,7 +318,7 @@ export const swaggerSpec = {
               schema: {
                 type: 'object',
                 required: ['semestreId'],
-                properties: { semestreId: { type: 'integer', example: 1 } },
+                properties: { semestreId: { type: 'string', example: 'uuid-do-semestre' } },
               },
             },
           },
@@ -339,7 +339,7 @@ export const swaggerSpec = {
         tags: ['Relatório'],
         summary: 'Buscar relatório por ID',
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Relatório com status atual' }, 404: { description: 'Não encontrado' } },
       },
     },
@@ -348,7 +348,7 @@ export const swaggerSpec = {
         tags: ['Relatório'],
         summary: 'Baixar relatório em DOCX',
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'integer' } }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: {
           200: {
             description: 'Arquivo .docx para download',

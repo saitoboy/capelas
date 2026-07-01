@@ -14,8 +14,8 @@ const handleError = (res: Response, err: unknown): void => {
 
 export const postGerar = async (req: Request, res: Response): Promise<void> => {
   try {
-    const capelaId = Number(req.params.capelaId);
-    if (isNaN(capelaId)) {
+    const capelaId = req.params.capelaId as string;
+    if (!capelaId) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }
@@ -30,8 +30,8 @@ export const postGerar = async (req: Request, res: Response): Promise<void> => {
 
 export const getById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const capelaId = Number(req.params.capelaId);
-    if (isNaN(capelaId)) {
+    const capelaId = req.params.capelaId as string;
+    if (!capelaId) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }

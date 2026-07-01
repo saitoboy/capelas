@@ -61,8 +61,8 @@ export const getSemestreAtivo = async (_req: Request, res: Response): Promise<vo
 
 export const getSemestreById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
+    const id = req.params.id as string;
+    if (!id) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }
@@ -77,8 +77,8 @@ export const getSemestreById = async (req: Request, res: Response): Promise<void
 
 export const patchAtivar = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
+    const id = req.params.id as string;
+    if (!id) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }

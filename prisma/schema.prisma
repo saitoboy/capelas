@@ -28,7 +28,7 @@ model Usuario {
 
 // ─── PERSONA MBTI ─────────────────────────────────────────────────────────────
 model Persona {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   alunoRa   String   @unique @map("aluno_ra") @db.VarChar(20)
   tipo      String   @db.Char(4)
   nome      String   @db.VarChar(100)
@@ -42,7 +42,7 @@ model Persona {
 
 // ─── SEMESTRES ────────────────────────────────────────────────────────────────
 model Semestre {
-  id              Int      @id @default(autoincrement())
+  id              String   @id @default(uuid())
   label           String   @unique @db.VarChar(50)
   publishedAfter  DateTime @map("published_after")
   publishedBefore DateTime @map("published_before")
@@ -57,8 +57,8 @@ model Semestre {
 
 // ─── CAPELAS ──────────────────────────────────────────────────────────────────
 model Capela {
-  id           Int      @id @default(autoincrement())
-  semestreId   Int      @map("semestre_id")
+  id           String   @id @default(uuid())
+  semestreId   String   @map("semestre_id")
   indice       Int
   data         DateTime @db.Date
   videoId      String?  @unique @map("video_id") @db.VarChar(20)
@@ -78,8 +78,8 @@ model Capela {
 
 // ─── SINOPSES ────────────────────────────────────────────────────────────────
 model Sinopse {
-  id       Int      @id @default(autoincrement())
-  capelaId Int      @unique @map("capela_id")
+  id       String   @id @default(uuid())
+  capelaId String   @unique @map("capela_id")
   texto    String
   geradoEm DateTime @default(now()) @map("gerado_em")
 
@@ -90,9 +90,9 @@ model Sinopse {
 
 // ─── RELATÓRIOS ───────────────────────────────────────────────────────────────
 model Relatorio {
-  id                Int      @id @default(autoincrement())
+  id                String   @id @default(uuid())
   alunoRa           String   @map("aluno_ra") @db.VarChar(20)
-  semestreId        Int      @map("semestre_id")
+  semestreId        String   @map("semestre_id")
   personaTipo       String   @db.Char(4) @map("persona_tipo")
   personaNome       String   @db.VarChar(100) @map("persona_nome")
   focoCriativo      String?  @db.VarChar(30) @map("foco_criativo")

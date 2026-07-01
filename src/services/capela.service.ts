@@ -50,7 +50,7 @@ export const criarManual = async (body: CreateCapelaManualBody): Promise<CapelaP
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const listarPorSemestre = async (semestreId: number): Promise<CapelaPublica[]> => {
+export const listarPorSemestre = async (semestreId: string): Promise<CapelaPublica[]> => {
   const semestre = await prisma.semestre.findUnique({ where: { id: semestreId } });
   if (!semestre) {
     const err = new Error('Semestre não encontrado') as any;
@@ -69,7 +69,7 @@ export const listarPorSemestre = async (semestreId: number): Promise<CapelaPubli
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const buscarCapelaPorId = async (id: number): Promise<CapelaPublica> => {
+export const buscarCapelaPorId = async (id: string): Promise<CapelaPublica> => {
   const capela = await prisma.capela.findUnique({
     where: { id },
     include: { sinopse: true },
@@ -86,7 +86,7 @@ export const buscarCapelaPorId = async (id: number): Promise<CapelaPublica> => {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const deletarCapela = async (id: number): Promise<void> => {
+export const deletarCapela = async (id: string): Promise<void> => {
   const existe = await prisma.capela.findUnique({ where: { id } });
   if (!existe) {
     const err = new Error('Capela não encontrada') as any;
@@ -106,7 +106,7 @@ export interface ColetarResult {
   erros:      { indice: number; motivo: string }[];
 }
 
-export const coletarDoYoutube = async (semestreId: number): Promise<ColetarResult> => {
+export const coletarDoYoutube = async (semestreId: string): Promise<ColetarResult> => {
   const semestre = await prisma.semestre.findUnique({ where: { id: semestreId } });
   if (!semestre) {
     const err = new Error('Semestre não encontrado') as any;

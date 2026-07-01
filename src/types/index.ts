@@ -51,7 +51,7 @@ export type MbtiTipo =
   | 'ISTP' | 'ISFP' | 'ESTP' | 'ESFP';
 
 export interface PersonaPublica {
-  id: number;
+  id: string;
   alunoRa: string;
   tipo: MbtiTipo;
   nome: string;
@@ -72,7 +72,7 @@ export interface TestePersonaBody {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface SemestrePublico {
-  id: number;
+  id: string;
   label: string;
   publishedAfter: Date;
   publishedBefore: Date;
@@ -91,8 +91,8 @@ export interface CreateSemestreBody {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface CapelaPublica {
-  id: number;
-  semestreId: number;
+  id: string;
+  semestreId: string;
   indice: number;
   data: Date;
   videoId: string | null;
@@ -106,7 +106,7 @@ export interface CapelaPublica {
 }
 
 export interface CreateCapelaManualBody {
-  semestreId: number;
+  semestreId: string;
   indice: number;
   data: string;        // ISO 8601 date
   textoBiblico: string;
@@ -115,7 +115,7 @@ export interface CreateCapelaManualBody {
 }
 
 export interface ColetarCapelasBody {
-  semestreId: number;
+  semestreId: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -123,8 +123,8 @@ export interface ColetarCapelasBody {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface SinopsePublica {
-  id: number;
-  capelaId: number;
+  id: string;
+  capelaId: string;
   texto: string;
   geradoEm: Date;
 }
@@ -138,9 +138,9 @@ export type StatusRelatorio = 'PENDENTE' | 'GERANDO' | 'CONCLUIDO' | 'ERRO';
 export type FocoCriativo = 'pastoral' | 'teológico' | 'litúrgico' | 'histórico-bíblico';
 
 export interface RelatorioPublico {
-  id: number;
+  id: string;
   alunoRa: string;
-  semestreId: number;
+  semestreId: string;
   personaTipo: string;
   personaNome: string;
   focoCriativo: FocoCriativo | null;

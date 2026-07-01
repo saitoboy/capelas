@@ -15,8 +15,8 @@ const handleError = (res: Response, err: unknown): void => {
 
 export const getCapelas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const semestreId = Number(req.query.semestreId);
-    if (!semestreId || isNaN(semestreId)) {
+    const semestreId = String(req.query.semestreId ?? '');
+    if (!semestreId) {
       res.status(400).json({ mensagem: 'Query obrigatória: semestreId' });
       return;
     }
@@ -31,8 +31,8 @@ export const getCapelas = async (req: Request, res: Response): Promise<void> => 
 
 export const getCapelaById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
+    const id = req.params.id as string;
+    if (!id) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }
@@ -54,7 +54,7 @@ export const postCapelaManual = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const chapel = await criarManual({ semestreId: Number(semestreId), indice: Number(indice), data, textoBiblico, tema, pregador });
+    const chapel = await criarManual({ semestreId, indice: Number(indice), data, textoBiblico, tema, pregador });
     res.status(201).json(chapel);
   } catch (err) {
     handleError(res, err);
@@ -65,9 +65,9 @@ export const postCapelaManual = async (req: Request, res: Response): Promise<voi
 
 export const postColetarCapelas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const semestreId = Number(req.body.semestreId);
-    if (!semestreId || isNaN(semestreId)) {
-      res.status(400).json({ mensagem: 'Campo obrigatório: semestreId (número)' });
+    const semestreId = req.body.semestreId as string;
+    if (!semestreId) {
+      res.status(400).json({ mensagem: 'Campo obrigatório: semestreId' });
       return;
     }
     const resultado = await coletarDoYoutube(semestreId);
@@ -81,8 +81,8 @@ export const postColetarCapelas = async (req: Request, res: Response): Promise<v
 
 export const deleteCapelaById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
+    const id = req.params.id as string;
+    if (!id) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }

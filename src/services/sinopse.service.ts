@@ -14,7 +14,7 @@ const toPublico = (s: any): SinopsePublica => ({
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const gerarSinopse = async (capelaId: number): Promise<SinopsePublica> => {
+export const gerarSinopse = async (capelaId: string): Promise<SinopsePublica> => {
   const capela = await prisma.capela.findUnique({ where: { id: capelaId } });
   if (!capela) {
     const err = new Error('Capela não encontrada') as any;
@@ -52,7 +52,7 @@ Dados da pregação:
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const buscarSinopse = async (capelaId: number): Promise<SinopsePublica> => {
+export const buscarSinopse = async (capelaId: string): Promise<SinopsePublica> => {
   const sinopse = await prisma.sinopse.findUnique({ where: { capelaId } });
   if (!sinopse) {
     const err = new Error('Sinopse não encontrada') as any;

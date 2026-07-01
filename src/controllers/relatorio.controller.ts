@@ -16,10 +16,10 @@ const handleError = (res: Response, err: unknown): void => {
 
 export const postGerar = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const semestreId = Number(req.body.semestreId);
+    const semestreId = req.body.semestreId as string;
 
-    if (!semestreId || isNaN(semestreId)) {
-      res.status(400).json({ mensagem: 'Campo obrigatório: semestreId (número)' });
+    if (!semestreId) {
+      res.status(400).json({ mensagem: 'Campo obrigatório: semestreId' });
       return;
     }
 
@@ -45,9 +45,9 @@ export const getMeus = async (req: AuthRequest, res: Response): Promise<void> =>
 
 export const getById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id);
+    const id = req.params.id as string;
 
-    if (isNaN(id)) {
+    if (!id) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }
@@ -63,8 +63,8 @@ export const getById = async (req: AuthRequest, res: Response): Promise<void> =>
 
 export const getDocx = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
+    const id = req.params.id as string;
+    if (!id) {
       res.status(400).json({ mensagem: 'ID inválido' });
       return;
     }

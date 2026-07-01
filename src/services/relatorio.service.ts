@@ -19,7 +19,7 @@ const FOCO_TEMP: Record<FocoCriativo, number> = {
 // Job em background: gera reflexão + análise + docx e atualiza status
 // ──────────────────────────────────────────────────────────────────────────────
 
-async function processarRelatorio(relatorioId: number): Promise<void> {
+async function processarRelatorio(relatorioId: string): Promise<void> {
   const relatorio = await prisma.relatorio.findUnique({ where: { id: relatorioId } });
   if (!relatorio) return;
 
@@ -140,7 +140,7 @@ const toPublico = (r: any): RelatorioPublico => ({
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const gerarRelatorio = async (ra: string, semestreId: number): Promise<RelatorioPublico> => {
+export const gerarRelatorio = async (ra: string, semestreId: string): Promise<RelatorioPublico> => {
   // Valida persona
   const persona = await prisma.persona.findUnique({ where: { alunoRa: ra } });
   if (!persona) {
@@ -208,7 +208,7 @@ export const listarMeus = async (ra: string): Promise<RelatorioPublico[]> => {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const buscarPorId = async (id: number, ra: string, isAdmin: boolean): Promise<RelatorioPublico> => {
+export const buscarPorId = async (id: string, ra: string, isAdmin: boolean): Promise<RelatorioPublico> => {
   const relatorio = await prisma.relatorio.findUnique({ where: { id } });
 
   if (!relatorio) {

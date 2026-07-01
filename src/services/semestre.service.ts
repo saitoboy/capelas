@@ -38,7 +38,7 @@ export const listarSemestres = async (): Promise<SemestrePublico[]> => {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const buscarSemestrePorId = async (id: number): Promise<SemestrePublico> => {
+export const buscarSemestrePorId = async (id: string): Promise<SemestrePublico> => {
   const semestre = await prisma.semestre.findUnique({ where: { id } });
 
   if (!semestre) {
@@ -52,7 +52,7 @@ export const buscarSemestrePorId = async (id: number): Promise<SemestrePublico> 
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export const ativarSemestre = async (id: number): Promise<SemestrePublico> => {
+export const ativarSemestre = async (id: string): Promise<SemestrePublico> => {
   const existe = await prisma.semestre.findUnique({ where: { id } });
   if (!existe) {
     const err = new Error('Semestre não encontrado') as any;
