@@ -9,7 +9,7 @@ const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET!);
 // ──────────────────────────────────────────────────────────────────────────────
 
 export const registrar = async (body: RegisterBody): Promise<LoginResult> => {
-  const { ra, nome, senha, curso } = body;
+  const { ra, nome, email, senha, curso } = body;
 
   const existe = await prisma.usuario.findUnique({ where: { ra } });
   if (existe) {
@@ -18,11 +18,18 @@ export const registrar = async (body: RegisterBody): Promise<LoginResult> => {
     throw err;
   }
 
+  const emailExiste = await prisma.usuario.findUnique({ where: { email } });
+  if (emailExiste) {
+    const err = new Error('E-mail já cadastrado') as any;
+    err.status = 409;
+    throw err;
+  }
+
   const senhaHash = await bcrypt.hash(senha, 10);
 
   const usuario = await prisma.usuario.create({
-    data: { ra, nome, senhaHash, curso },
-    select: { ra: true, nome: true, curso: true, isAdmin: true, createdAt: true },
+    data: { ra, nome, email, senhaHash, curso },
+    select: { ra: true, nome: true, email: true, curso: true, isAdmin: true, createdAt: true },
   });
 
   const token = await new SignJWT({ sub: usuario.ra, isAdmin: usuario.isAdmin })
@@ -31,14 +38,14 @@ export const registrar = async (body: RegisterBody): Promise<LoginResult> => {
     .sign(getSecret());
 
   logSuccess(`Usuário registrado: ${ra}`, 'auth');
-  return { token, usuario: { ra: usuario.ra, nome: usuario.nome, curso: usuario.curso, isAdmin: usuario.isAdmin } };
+  return { token, usuario: { ra: usuario.ra, nome: usuario.nome, email: usuario.email, curso: usuario.curso, isAdmin: usuario.isAdmin } };
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface LoginResult {
   token: string;
-  usuario: Pick<UsuarioPublico, 'ra' | 'nome' | 'curso' | 'isAdmin'>;
+  usuario: Pick<UsuarioPublico, 'ra' | 'nome' | 'email' | 'curso' | 'isAdmin'>;
 }
 
 export const autenticar = async (body: LoginBody): Promise<LoginResult> => {
@@ -67,7 +74,7 @@ export const autenticar = async (body: LoginBody): Promise<LoginResult> => {
   logSuccess(`Login realizado: ${ra}`, 'auth');
   return {
     token,
-    usuario: { ra: usuario.ra, nome: usuario.nome, curso: usuario.curso, isAdmin: usuario.isAdmin },
+    usuario: { ra: usuario.ra, nome: usuario.nome, email: usuario.email, curso: usuario.curso, isAdmin: usuario.isAdmin },
   };
 };
 
@@ -87,7 +94,7 @@ export const verificarToken = async (token: string): Promise<JwtPayload> => {
 export const buscarPorRa = async (ra: string): Promise<UsuarioPublico> => {
   const usuario = await prisma.usuario.findUnique({
     where: { ra },
-    select: { ra: true, nome: true, curso: true, isAdmin: true, createdAt: true },
+    select: { ra: true, nome: true, email: true, curso: true, isAdmin: true, createdAt: true },
   });
 
   if (!usuario) {

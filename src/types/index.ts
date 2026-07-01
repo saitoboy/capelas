@@ -23,6 +23,7 @@ export interface AuthRequest extends Request {
 export interface UsuarioPublico {
   ra: string;
   nome: string;
+  email: string;
   curso: Curso;
   isAdmin: boolean;
   createdAt: Date;
@@ -31,7 +32,9 @@ export interface UsuarioPublico {
 export interface RegisterBody {
   ra: string;
   nome: string;
+  email: string;
   senha: string;
+  confirmSenha: string;
   curso: Curso;
 }
 

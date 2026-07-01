@@ -15,14 +15,19 @@ const handleError = (res: Response, err: unknown): void => {
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { ra, nome, senha, curso } = req.body as RegisterBody;
+    const { ra, nome, email, senha, confirmSenha, curso } = req.body as RegisterBody;
 
-    if (!ra || !nome || !senha || !curso) {
-      res.status(400).json({ mensagem: 'Campos obrigatórios: ra, nome, senha, curso' });
+    if (!ra || !nome || !email || !senha || !confirmSenha || !curso) {
+      res.status(400).json({ mensagem: 'Campos obrigatórios: ra, nome, email, senha, confirmSenha, curso' });
       return;
     }
 
-    const resultado = await registrar({ ra, nome, senha, curso });
+    if (senha !== confirmSenha) {
+      res.status(400).json({ mensagem: 'As senhas não coincidem' });
+      return;
+    }
+
+    const resultado = await registrar({ ra, nome, email, senha, confirmSenha, curso });
     res.status(201).json(resultado);
   } catch (err) {
     handleError(res, err);

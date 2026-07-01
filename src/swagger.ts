@@ -33,11 +33,13 @@ export const swaggerSpec = {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['ra', 'nome', 'senha', 'curso'],
+                required: ['ra', 'nome', 'email', 'senha', 'confirmSenha', 'curso'],
                 properties: {
-                  ra:    { type: 'string', example: '251000841' },
-                  nome:  { type: 'string', example: 'Débora Silva' },
-                  senha: { type: 'string', example: '@Debora123' },
+                  ra:           { type: 'string', example: '251000841' },
+                  nome:         { type: 'string', example: 'Débora Silva' },
+                  email:        { type: 'string', format: 'email', example: 'debora@email.com' },
+                  senha:        { type: 'string', example: '@Debora123' },
+                  confirmSenha: { type: 'string', example: '@Debora123' },
                   curso: {
                     type: 'string',
                     enum: ['TEOLOGIA', 'PEDAGOGIA', 'ENFERMAGEM', 'ADMINISTRACAO', 'DIREITO'],

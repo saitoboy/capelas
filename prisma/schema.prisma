@@ -15,6 +15,7 @@ enum Curso {
 model Usuario {
   ra        String   @id @db.VarChar(20)
   nome      String   @db.VarChar(200)
+  email     String   @unique @db.VarChar(255)
   senhaHash String   @map("senha_hash") @db.VarChar(255)
   curso     Curso
   isAdmin   Boolean  @default(false) @map("is_admin")
