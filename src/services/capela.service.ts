@@ -124,7 +124,7 @@ export const coletarDoYoutube = async (semestreId: number): Promise<ColetarResul
   for (const c of chapels) {
     try {
       const existing = await prisma.capela.findUnique({
-        where: { uk_semestre_indice: { semestreId, indice: c.indice } },
+        where: { videoId: c.videoId },
       });
 
       const data = {
@@ -140,8 +140,8 @@ export const coletarDoYoutube = async (semestreId: number): Promise<ColetarResul
       };
 
       const chapel = await prisma.capela.upsert({
-        where:  { uk_semestre_indice: { semestreId, indice: c.indice } },
-        update: data,
+        where:  { videoId: c.videoId },
+        update: { textoBiblico: data.textoBiblico, tema: data.tema, pregador: data.pregador, url: data.url },
         create: data,
       });
 
