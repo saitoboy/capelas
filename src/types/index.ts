@@ -1,4 +1,5 @@
 import { Request } from 'express';
+export { Curso } from '@prisma/client';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // JWT
@@ -17,10 +18,6 @@ export interface AuthRequest extends Request {
 // ──────────────────────────────────────────────────────────────────────────────
 // USUÁRIO
 // ──────────────────────────────────────────────────────────────────────────────
-
-export enum Curso {
-  TEOLOGIA = 'TEOLOGIA',
-}
 
 export interface UsuarioPublico {
   ra: string;

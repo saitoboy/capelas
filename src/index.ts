@@ -5,6 +5,7 @@ import cors from "cors";
 import { AddressInfo } from "net";
 import { logSuccess, logError } from "./utils/logger";
 import authRoutes from "./routes/auth.routes";
+import personaRoutes from "./routes/persona.routes";
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.get("/", (_req: Request, res: Response) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/persona", personaRoutes);
 
 const server = app.listen(process.env.PORT || 3003, () => {
   if (server) {
