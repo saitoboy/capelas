@@ -1,0 +1,28 @@
+# ─── Database ────────────────────────────────────────────────────────────────
+DATABASE_URL="postgresql://postgres:senha@localhost:porta/nomedobanco"
+
+# ─── API Server ───────────────────────────────────────────────────────────────
+PORT=porta
+NODE_ENV=development
+
+# ─── JWT ─────────────────────────────────────────────────────────────────────
+JWT_SECRET=suasenha
+JWT_EXPIRES_IN=7d
+
+# ─── Groq AI ─────────────────────────────────────────────────────────────────
+GROQ_API_KEY=gsk_...
+
+# ─── YouTube Data API ─────────────────────────────────────────────────────────
+YOUTUBE_API_KEY=AIza...
+CHANNEL_HANDLE=@souseminariodosul
+CHAPEL_KEYWORD=Devoção na Capela
+CHAPEL_WEEKDAY=2
+
+# ─── Logo ─────────────────────────────────────────────────────────────────────
+LOGO_URL=https://curriculo.digiescola.muriae.mg.gov.br/wp-content/uploads/2026/06/logo-fabat.png
+
+# ─── Proxy (rede corporativa) ─────────────────────────────────────────────────
+PROXY_HOST=ip
+PROXY_PORT=porta
+PROXY_USER=usuario
+PROXY_PASS=senha
