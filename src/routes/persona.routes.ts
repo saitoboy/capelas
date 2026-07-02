@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { getMinhaPersona, postPreset, postTeste } from '../controllers/persona.controller';
+import { getMinhaPersona, postPreset, postTeste, getPerguntas } from '../controllers/persona.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
+
+router.get('/perguntas', getPerguntas); // pública, antes do authMiddleware
+
 
 router.use(authMiddleware);
 

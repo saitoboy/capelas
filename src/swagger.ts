@@ -244,6 +244,33 @@ export const swaggerSpec = {
     },
 
     /* ─── PERSONA ───────────────────────────────────────────── */
+    '/persona/perguntas': {
+      get: {
+        tags: ['Persona'],
+        summary: 'Listar perguntas do teste MBTI (contexto: comportamento no culto)',
+        responses: {
+          200: {
+            description: 'Array com as 8 perguntas do teste',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id:       { type: 'integer', example: 1 },
+                      pergunta: { type: 'string', example: 'Quando você chega para o culto, o que costuma fazer primeiro?' },
+                      opcaoA:   { type: 'string', example: 'Cumprimento várias pessoas e puxo conversa antes de sentar' },
+                      opcaoB:   { type: 'string', example: 'Prefiro sentar logo e ficar em silêncio, observando o ambiente' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/persona/me': {
       get: {
         tags: ['Persona'],

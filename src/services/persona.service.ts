@@ -1,6 +1,7 @@
 import prisma from '../utils/prisma';
 import { MbtiTipo, PersonaPublica, PresetPersonaBody, TestePersonaBody } from '../types';
 import { logSuccess } from '../utils/logger';
+import { PERSONA_PERGUNTAS, PersonaPergunta } from '../data/personaPerguntas';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Mapa de nome e tom por tipo MBTI
@@ -106,4 +107,16 @@ export const buscarPersona = async (ra: string): Promise<PersonaPublica> => {
   }
 
   return persona as unknown as PersonaPublica;
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const listarPerguntas = (): Omit<PersonaPergunta, 'dimensao'>[] => {
+  // não precisa expor a dimensão pro client, é só ruído
+  return PERSONA_PERGUNTAS.map(({ id, pergunta, opcaoA, opcaoB }) => ({
+    id,
+    pergunta,
+    opcaoA,
+    opcaoB,
+  }));
 };

@@ -1,7 +1,8 @@
 import { Response } from 'express';
-import { definirPorPreset, definirPorTeste, buscarPersona } from '../services/persona.service';
+import { definirPorPreset, definirPorTeste, buscarPersona, listarPerguntas } from '../services/persona.service';
 import { AuthRequest, PresetPersonaBody, TestePersonaBody } from '../types';
 import { logError } from '../utils/logger';
+
 
 const handleError = (res: Response, err: unknown): void => {
   const e = err as any;
@@ -53,6 +54,17 @@ export const postTeste = async (req: AuthRequest, res: Response): Promise<void> 
 
     const persona = await definirPorTeste(req.user!.sub, { respostas });
     res.status(201).json(persona);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const getPerguntas = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const perguntas = listarPerguntas();
+    res.json(perguntas);
   } catch (err) {
     handleError(res, err);
   }
