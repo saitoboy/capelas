@@ -180,7 +180,7 @@ export async function generateDocx(
   const tableDataRows = chapels.map((c, i) => {
     const shading = i % 2 === 0 ? ROW_SHADING_ODD : ROW_SHADING_EVEN;
     const dataStr = c.data instanceof Date
-      ? c.data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      ? c.data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
       : String(c.data);
     return new TableRow({
       children: [

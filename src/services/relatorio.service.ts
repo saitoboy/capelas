@@ -45,7 +45,7 @@ async function processarRelatorio(relatorioId: string): Promise<void> {
     if (personaDb) persona.tom = personaDb.tom;
 
     const chapelSummary = capelas
-      .map(c => `- ${c.data.toLocaleDateString('pt-BR')}: "${c.tema}" | Texto: ${c.textoBiblico} | Pregador: ${c.pregador}`)
+      .map(c => `- ${c.data.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}: "${c.tema}" | Texto: ${c.textoBiblico} | Pregador: ${c.pregador}`)
       .join('\n');
 
     // ── Reflexão Teológica ────────────────────────────────────────────────────
