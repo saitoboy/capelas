@@ -38,11 +38,20 @@ app.use("/capela", capelaRoutes);
 app.use("/sinopse", sinopseRoutes);
 app.use("/groq-key", groqKeyRoutes);
 
-const server = app.listen(process.env.PORT || 3003, () => {
+const port = process.env.PORT || 3003;
+
+const server = app.listen(port, () => {
   const address = server.address() as AddressInfo | null;
   if (address) {
     logSuccess(`Servidor rodando em http://localhost:${address.port}`, 'server');
-  } else {
-    logError('Falha ao iniciar o servidor', 'server');
   }
+});
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    logError(`Porta ${port} já está em uso. Encerre o processo que a ocupa e tente de novo.`, 'server');
+  } else {
+    logError(`Falha ao iniciar o servidor: ${err.message}`, 'server', err);
+  }
+  process.exit(1);
 });
