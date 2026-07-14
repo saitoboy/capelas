@@ -221,6 +221,22 @@ export const buscarColeta = async (id: string): Promise<ColetaPublica> => {
 };
 
 /**
+ * Coletas de um semestre, da mais recente para a mais antiga.
+ *
+ * Sem isto, o front só acompanharia uma coleta se tivesse guardado o id que o
+ * POST devolveu: abrir a tela noutro navegador perderia de vista um job que
+ * continua rodando no servidor.
+ */
+export const listarColetas = async (semestreId: string): Promise<ColetaPublica[]> => {
+  const coletas = await prisma.coleta.findMany({
+    where:   { semestreId },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return coletas.map(coletaToPublico);
+};
+
+/**
  * Cria o registro da coleta e dispara o processamento em background.
  * Responde imediatamente — o chamador devolve 202.
  */

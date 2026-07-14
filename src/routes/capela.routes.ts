@@ -5,6 +5,7 @@ import {
   postCapelaManual,
   postColetarCapelas,
   getColeta,
+  getColetas,
   patchCapela,
   deleteCapelaById,
 } from '../controllers/capela.controller';
@@ -15,6 +16,7 @@ const router = Router();
 
 // Rotas admin — declaradas antes de '/:id' para que 'coletar' não seja lido como id
 router.post('/coletar',     authMiddleware, adminOnly, postColetarCapelas);  // POST  /capela/coletar    → 202
+router.get('/coletar',      authMiddleware, adminOnly, getColetas);          // GET   /capela/coletar?semestreId= → histórico
 router.get('/coletar/:id',  authMiddleware, adminOnly, getColeta);           // GET   /capela/coletar/:id → progresso
 router.post('/manual',      authMiddleware, adminOnly, postCapelaManual);    // POST  /capela/manual
 router.patch('/:id',        authMiddleware, adminOnly, patchCapela);         // PATCH /capela/:id → edição manual

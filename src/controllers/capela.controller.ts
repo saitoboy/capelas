@@ -7,6 +7,7 @@ import {
   editarCapela,
   iniciarColeta,
   buscarColeta,
+  listarColetas,
 } from '../services/capela.service';
 import { CreateCapelaManualBody, ColetarCapelasBody, UpdateCapelaBody } from '../types';
 import { logError } from '../utils/logger';
@@ -97,6 +98,22 @@ export const postColetarCapelas = async (req: Request, res: Response): Promise<v
 
     const coleta = await iniciarColeta(body);
     res.status(202).json(coleta);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const getColetas = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const semestreId = String(req.query.semestreId ?? '');
+    if (!semestreId) {
+      res.status(400).json({ mensagem: 'Query obrigatória: semestreId' });
+      return;
+    }
+    const coletas = await listarColetas(semestreId);
+    res.json(coletas);
   } catch (err) {
     handleError(res, err);
   }

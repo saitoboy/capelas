@@ -224,6 +224,7 @@ Resposta (register e login):
 | `POST` | `/capela/manual` | 🔒 Admin | Inserir manualmente |
 | `PATCH` | `/capela/:id` | 🔒 Admin | **Editar à mão o que a IA não extraiu** |
 | `POST` | `/capela/coletar` | 🔒 Admin | Coletar do YouTube — **background** |
+| `GET` | `/capela/coletar?semestreId=` | 🔒 Admin | Coletas do semestre, da mais recente para a mais antiga |
 | `GET` | `/capela/coletar/:id` | 🔒 Admin | Progresso da coleta |
 | `DELETE` | `/capela/:id` | 🔒 Admin | Deletar |
 
