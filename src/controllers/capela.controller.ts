@@ -1,6 +1,14 @@
 import { Request, Response } from 'express';
-import { criarManual, listarPorSemestre, buscarCapelaPorId, deletarCapela, coletarDoYoutube } from '../services/capela.service';
-import { CreateCapelaManualBody } from '../types';
+import {
+  criarManual,
+  listarPorSemestre,
+  buscarCapelaPorId,
+  deletarCapela,
+  editarCapela,
+  iniciarColeta,
+  buscarColeta,
+} from '../services/capela.service';
+import { CreateCapelaManualBody, ColetarCapelasBody, UpdateCapelaBody } from '../types';
 import { logError } from '../utils/logger';
 
 const handleError = (res: Response, err: unknown): void => {
@@ -49,8 +57,10 @@ export const postCapelaManual = async (req: Request, res: Response): Promise<voi
   try {
     const { semestreId, indice, data, textoBiblico, tema, pregador } = req.body as CreateCapelaManualBody;
 
-    if (!semestreId || !indice || !data || !textoBiblico || !tema || !pregador) {
-      res.status(400).json({ mensagem: 'Campos obrigatórios: semestreId, indice, data, textoBiblico, tema, pregador' });
+    // textoBiblico, tema e pregador são opcionais: dá para criar a capela agora
+    // e preencher depois, com PATCH /capela/:id.
+    if (!semestreId || !indice || !data) {
+      res.status(400).json({ mensagem: 'Campos obrigatórios: semestreId, indice, data' });
       return;
     }
 
@@ -63,15 +73,66 @@ export const postCapelaManual = async (req: Request, res: Response): Promise<voi
 
 // ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Dispara a coleta e responde 202 na hora — o trabalho roda em background.
+ * O progresso é lido em GET /capela/coletar/:id.
+ */
 export const postColetarCapelas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const semestreId = req.body.semestreId as string;
-    if (!semestreId) {
+    const body = req.body as ColetarCapelasBody;
+
+    if (!body.semestreId) {
       res.status(400).json({ mensagem: 'Campo obrigatório: semestreId' });
       return;
     }
-    const resultado = await coletarDoYoutube(semestreId);
-    res.json(resultado);
+
+    if (body.weekday !== undefined) {
+      const dia = Number(body.weekday);
+      if (!Number.isInteger(dia) || dia < 0 || dia > 6) {
+        res.status(400).json({ mensagem: 'weekday deve ser um inteiro de 0 (domingo) a 6 (sábado)' });
+        return;
+      }
+      body.weekday = dia;
+    }
+
+    const coleta = await iniciarColeta(body);
+    res.status(202).json(coleta);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const getColeta = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!id) {
+      res.status(400).json({ mensagem: 'ID inválido' });
+      return;
+    }
+    const coleta = await buscarColeta(id);
+    res.json(coleta);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Edição manual — o admin assiste ao vídeo e preenche o que a IA não achou.
+ */
+export const patchCapela = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    if (!id) {
+      res.status(400).json({ mensagem: 'ID inválido' });
+      return;
+    }
+
+    const capela = await editarCapela(id, req.body as UpdateCapelaBody);
+    res.json(capela);
   } catch (err) {
     handleError(res, err);
   }

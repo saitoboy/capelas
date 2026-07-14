@@ -17,6 +17,7 @@ import relatorioRoutes from "./routes/relatorio.routes";
 import semestreRoutes from "./routes/semestre.routes";
 import capelaRoutes from "./routes/capela.routes";
 import sinopseRoutes from "./routes/sinopse.routes";
+import groqKeyRoutes from "./routes/groqKey.routes";
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use("/relatorio", relatorioRoutes);
 app.use("/semestre", semestreRoutes);
 app.use("/capela", capelaRoutes);
 app.use("/sinopse", sinopseRoutes);
+app.use("/groq-key", groqKeyRoutes);
 
 const server = app.listen(process.env.PORT || 3003, () => {
   const address = server.address() as AddressInfo | null;

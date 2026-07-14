@@ -44,8 +44,12 @@ async function processarRelatorio(relatorioId: string): Promise<void> {
     const personaDb = await prisma.persona.findUnique({ where: { alunoRa: relatorio.alunoRa } });
     if (personaDb) persona.tom = personaDb.tom;
 
+    // Campo não preenchido entra como "não informado" — mandar "null" no prompt
+    // faz a IA escrever reflexão em cima de dado que não existe.
+    const ou = (v: string | null) => v?.trim() || 'não informado';
+
     const chapelSummary = capelas
-      .map(c => `- ${c.data.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}: "${c.tema}" | Texto: ${c.textoBiblico} | Pregador: ${c.pregador}`)
+      .map(c => `- ${c.data.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}: "${ou(c.tema)}" | Texto: ${ou(c.textoBiblico)} | Pregador: ${ou(c.pregador)}`)
       .join('\n');
 
     // ── Reflexão Teológica ────────────────────────────────────────────────────

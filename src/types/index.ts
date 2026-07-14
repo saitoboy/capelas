@@ -100,9 +100,10 @@ export interface CapelaPublica {
   data: Date;
   videoId: string | null;
   url: string | null;
-  textoBiblico: string;
-  tema: string;
-  pregador: string;
+  // null = a IA não extraiu; falta o admin preencher à mão (PATCH /capela/:id).
+  textoBiblico: string | null;
+  tema: string | null;
+  pregador: string | null;
   source: string;
   createdAt: Date;
   sinopse?: SinopsePublica | null;
@@ -111,14 +112,89 @@ export interface CapelaPublica {
 export interface CreateCapelaManualBody {
   semestreId: string;
   indice: number;
-  data: string;        // ISO 8601 date
-  textoBiblico: string;
-  tema: string;
-  pregador: string;
+  data: string;                   // ISO 8601 date
+  textoBiblico?: string | null;   // opcionais — dá para criar a capela e
+  tema?: string | null;           // preencher depois
+  pregador?: string | null;
+}
+
+/**
+ * Edição manual. Campo omitido fica como está; `null` explícito limpa o campo.
+ */
+export interface UpdateCapelaBody {
+  textoBiblico?: string | null;
+  tema?: string | null;
+  pregador?: string | null;
+  data?: string;                  // ISO 8601 date
 }
 
 export interface ColetarCapelasBody {
   semestreId: string;
+  // Todos opcionais — omitidos, caem nas datas do semestre e nos defaults do .env.
+  publishedAfter?:  string;  // ISO 8601
+  publishedBefore?: string;  // ISO 8601
+  canal?:           string;  // "@souseminariodosul"
+  keyword?:         string;  // "Devoção na Capela"
+  weekday?:         number;  // 0 = domingo … 6 = sábado
+  gerarSinopses?:   boolean; // default: true
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// COLETA (job em background)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type StatusColeta = 'GERANDO' | 'CONCLUIDO' | 'ERRO';
+
+/** Uma linha do log da coleta — é o que a tela do admin mostra. */
+export interface ColetaItem {
+  indice: number;
+  tema:   string | null;
+  /** De onde o dado veio: comentarios | comentarios+transcricao | parcial | incompleto */
+  source: string;
+  /** Campos que a IA não extraiu e o admin precisa preencher à mão. */
+  faltando: string[];
+  erro?:  string;
+}
+
+export interface ColetaPublica {
+  id:          string;
+  semestreId:  string;
+  status:      StatusColeta;
+  etapa:       string | null;
+  total:       number;
+  processadas: number;
+  inseridas:   number;
+  atualizadas: number;
+  /** Vídeos descartados pelos filtros (sem data no título, dia da semana errado). */
+  ignorados:   number;
+  itens:       ColetaItem[];
+  erroMsg:     string | null;
+  createdAt:   Date;
+  updatedAt:   Date;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CHAVES DA GROQ
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type GroqKeyStatus = 'ATIVA' | 'ESGOTADA' | 'INVALIDA';
+
+/** A chave em si nunca aparece aqui — só o preview mascarado. */
+export interface GroqKeyPublica {
+  id:         string;
+  label:      string;
+  preview:    string;          // "gsk_…4f2a"
+  status:     GroqKeyStatus;
+  resetAt:    Date | null;     // quando uma ESGOTADA volta
+  lastUsedAt: Date | null;
+  erroMsg:    string | null;
+  criadoPor:  string;
+  createdAt:  Date;
+}
+
+export interface CreateGroqKeyBody {
+  label: string;
+  key:   string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

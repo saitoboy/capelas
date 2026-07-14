@@ -101,10 +101,13 @@ export interface AlunoInfo {
 export interface ChapelRow {
   indice:       number;
   data:         Date | string;
-  textoBiblico: string;
-  tema:         string;
-  pregador:     string;
+  textoBiblico: string | null;
+  tema:         string | null;
+  pregador:     string | null;
 }
+
+/** Campo não preenchido vira travessão na tabela — nunca "null" escrito no DOCX. */
+const ou = (v: string | null | undefined): string => v?.trim() || '—';
 
 export interface Reflections {
   reflexao:  string;
@@ -186,9 +189,9 @@ export async function generateDocx(
       children: [
         dataCell(String(c.indice), COL_WIDTHS[0], shading),
         dataCell(dataStr,          COL_WIDTHS[1], shading),
-        dataCell(c.textoBiblico,   COL_WIDTHS[2], shading),
-        dataCell(c.tema,           COL_WIDTHS[3], shading),
-        dataCell(c.pregador,       COL_WIDTHS[4], shading),
+        dataCell(ou(c.textoBiblico), COL_WIDTHS[2], shading),
+        dataCell(ou(c.tema),         COL_WIDTHS[3], shading),
+        dataCell(ou(c.pregador),     COL_WIDTHS[4], shading),
       ],
     });
   });

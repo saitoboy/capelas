@@ -23,6 +23,7 @@ model Usuario {
 
   persona    Persona?
   relatorios Relatorio[]
+  groqKeys   GroqKey[]
 
   @@map("usuarios")
 }
@@ -52,8 +53,55 @@ model Semestre {
 
   capelas    Capela[]
   relatorios Relatorio[]
+  coletas    Coleta[]
 
   @@map("semestres")
+}
+
+// ─── COLETAS ──────────────────────────────────────────────────────────────────
+// A coleta do YouTube faz ~3 chamadas de IA por capela e passa de 40 num semestre
+// inteiro — não cabe num request HTTP. Roda em background e o front faz polling
+// deste registro, igual ao Relatorio.
+model Coleta {
+  id          String   @id @default(uuid())
+  semestreId  String   @map("semestre_id")
+  status      String   @default("GERANDO") @db.VarChar(20) // GERANDO | CONCLUIDO | ERRO
+  etapa       String?  @db.VarChar(160)                    // "Extraindo dados de ..."
+  total       Int      @default(0)                         // capelas identificadas
+  processadas Int      @default(0)
+  inseridas   Int      @default(0)
+  atualizadas Int      @default(0)
+  ignorados   Int      @default(0)                         // vídeos descartados pelos filtros
+  itens       Json?                                        // log por capela
+  erroMsg     String?  @map("erro_msg")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  semestre Semestre @relation(fields: [semestreId], references: [id], onDelete: Cascade)
+
+  @@index([semestreId])
+  @@map("coletas")
+}
+
+// ─── CHAVES DA GROQ ───────────────────────────────────────────────────────────
+// Fila de chaves. Ao bater o limite de tokens (429), a chave é marcada como
+// ESGOTADA e a chamada é repetida na próxima da fila, de forma transparente.
+model GroqKey {
+  id         String    @id @default(uuid())
+  label      String    @db.VarChar(60)  // apelido: "chave do Guilherme"
+  keyEnc     String    @map("key_enc")  // AES-256-GCM — nunca sai do banco em texto puro
+  preview    String    @db.VarChar(20)  // "gsk_…4f2a" — é só isto que a API devolve
+  status     String    @default("ATIVA") @db.VarChar(12) // ATIVA | ESGOTADA | INVALIDA
+  resetAt    DateTime? @map("reset_at")      // quando a Groq disse que o limite volta
+  lastUsedAt DateTime? @map("last_used_at")  // ordena a fila (round-robin natural)
+  erroMsg    String?   @map("erro_msg")
+  criadoPor  String    @map("criado_por") @db.VarChar(20) // ra de quem cadastrou
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  aluno Usuario @relation(fields: [criadoPor], references: [ra], onDelete: Cascade)
+
+  @@index([status, lastUsedAt])
+  @@map("groq_keys")
 }
 
 // ─── CAPELAS ──────────────────────────────────────────────────────────────────
@@ -64,11 +112,15 @@ model Capela {
   data         DateTime @db.Date
   videoId      String?  @unique @map("video_id") @db.VarChar(20)
   url          String?  @db.VarChar(100)
-  textoBiblico String   @map("texto_biblico") @db.VarChar(200)
-  tema         String   @db.VarChar(400)
-  pregador     String   @db.VarChar(200)
+  // Anuláveis de propósito: quando a IA não consegue extrair da pregação, o
+  // campo fica NULL — não "(não encontrado)", que se confunde com dado real.
+  // NULL é o sinal de "falta preencher à mão" (PATCH /capela/:id).
+  textoBiblico String?  @map("texto_biblico") @db.VarChar(200)
+  tema         String?  @db.VarChar(400)
+  pregador     String?  @db.VarChar(200)
   source       String   @default("youtube") @db.VarChar(20)
   createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   semestre Semestre @relation(fields: [semestreId], references: [id], onDelete: Cascade)
   sinopse  Sinopse?

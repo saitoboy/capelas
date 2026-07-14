@@ -20,6 +20,7 @@ API REST para gestão de capelas universitárias — controla semestres, cultos 
   - [Sinopse](#sinopse)
   - [Persona](#persona)
   - [Relatório](#relatório)
+  - [Chaves da Groq](#chaves-da-groq)
 - [Autenticação](#autenticação)
 - [Roles & Permissões](#roles--permissões)
 - [Modelo de Dados](#modelo-de-dados)
@@ -221,19 +222,84 @@ Resposta (register e login):
 | `GET` | `/capela?semestreId=` | ❌ | Listar capelas do semestre |
 | `GET` | `/capela/:id` | ❌ | Buscar by ID |
 | `POST` | `/capela/manual` | 🔒 Admin | Inserir manualmente |
-| `POST` | `/capela/coletar` | 🔒 Admin | Coletar do YouTube |
+| `PATCH` | `/capela/:id` | 🔒 Admin | **Editar à mão o que a IA não extraiu** |
+| `POST` | `/capela/coletar` | 🔒 Admin | Coletar do YouTube — **background** |
+| `GET` | `/capela/coletar/:id` | 🔒 Admin | Progresso da coleta |
 | `DELETE` | `/capela/:id` | 🔒 Admin | Deletar |
 
-**`POST /capela/coletar`** — busca vídeos no YouTube filtrando por `CHAPEL_KEYWORD`, `CHAPEL_WEEKDAY` e o intervalo de datas do semestre. Insere ou atualiza automaticamente.
+#### Campos ausentes são `NULL`
+
+`textoBiblico`, `tema` e `pregador` são **anuláveis**. Quando a IA não consegue extrair um deles da pregação, o campo fica `NULL` — e não com um texto `"(não encontrado)"`, que se confundia com dado real e ia parar no relatório do aluno como se fosse verdade.
+
+`NULL` é o sinal de **"falta preencher à mão"**. O fluxo é: coletar → ver o que ficou vazio → assistir ao vídeo → preencher com `PATCH /capela/:id`.
+
+**`PATCH /capela/:id`** — só mexe nos campos enviados; omitir um campo o deixa como está, e mandar `null` explicitamente o limpa.
 
 ```json
-{ "semestreId": "uuid-do-semestre" }
+{ "tema": "A soberania de Deus", "pregador": "Pr. Marcos Lima" }
 ```
 
-Resposta:
-```json
-{ "inseridas": 12, "atualizadas": 2, "erros": [] }
+Campos aceitos: `textoBiblico`, `tema`, `pregador`, `data`.
+
+> **Recoletar não apaga o que foi preenchido à mão.** No upsert, um `null` vindo da IA nunca sobrescreve um valor existente — só campos que a IA realmente extraiu são atualizados.
+
+Consequências em cascata, todas tratadas:
+
+- **DOCX** — campo `NULL` vira `—` na tabela, nunca a palavra "null".
+- **Relatório** — no prompt da IA, campo vazio entra como "não informado", para ela não escrever reflexão em cima de dado inexistente.
+- **Sinopse** — capela sem tema **e** sem texto bíblico devolve `422`: não há do que escrever, e a IA inventaria a pregação inteira. Preencha os dados e gere depois.
+- **`POST /capela/manual`** — agora só exige `semestreId`, `indice` e `data`. Dá para criar a capela e preencher o resto depois.
+
+**`POST /capela/coletar`** — busca vídeos no canal, filtra por palavra-chave e dia da semana, extrai texto bíblico / tema / pregador via IA e (opcionalmente) já gera as sinopses.
+
+A coleta faz **~3 chamadas de IA por capela** e passa de 40 num semestre inteiro — não cabe num request HTTP. Por isso roda **em background**: a resposta é imediata (`202`) e o progresso é acompanhado por polling em `GET /capela/coletar/:id`.
+
+Só `semestreId` é obrigatório. Os demais campos sobrescrevem os defaults do semestre e do `.env`:
+
+```jsonc
+{
+  "semestreId": "uuid-do-semestre",   // obrigatório
+  "publishedAfter":  "2026-02-01T00:00:00Z",  // default: data inicial do semestre
+  "publishedBefore": "2026-07-01T00:00:00Z",  // default: data final do semestre
+  "canal":   "@souseminariodosul",    // default: CHANNEL_HANDLE
+  "keyword": "Devoção na Capela",     // default: CHAPEL_KEYWORD
+  "weekday": 2,                       // default: CHAPEL_WEEKDAY (0=dom … 6=sáb)
+  "gerarSinopses": true               // default: true
+}
 ```
+
+Resposta imediata (`202`):
+```json
+{ "id": "uuid-da-coleta", "status": "GERANDO", "etapa": "Na fila…", "total": 0, "processadas": 0 }
+```
+
+**`GET /capela/coletar/:id`** — faça polling até `status` sair de `GERANDO`:
+```json
+{
+  "id": "uuid",
+  "status": "CONCLUIDO",
+  "etapa": null,
+  "total": 12,
+  "processadas": 12,
+  "inseridas": 9,
+  "atualizadas": 3,
+  "ignorados": 3,
+  "itens": [
+    { "indice": 1, "tema": "A fé que sustenta",  "source": "comentarios", "faltando": [] },
+    { "indice": 2, "tema": "Servir com alegria", "source": "comentarios+transcricao", "faltando": [] },
+    { "indice": 3, "tema": null, "source": "parcial", "faltando": ["tema", "pregador"] }
+  ],
+  "erroMsg": null
+}
+```
+
+- **`ignorados`** — vídeos do canal descartados pelos filtros (sem data `DD/MM/AAAA` no título, ou fora do dia da semana). Antes eram descartados em silêncio; agora aparecem, para o admin entender por que faltou capela.
+- **`itens[].source`** — de onde o dado veio: `comentarios`, `comentarios+transcricao`, `parcial` ou `incompleto`. É como se sabe em quais capelas confiar.
+- **`itens[].faltando`** — os campos que ficaram `NULL` e precisam ser preenchidos à mão via `PATCH /capela/:id`.
+
+> Uma coleta por semestre de cada vez — disparar outra com uma em andamento devolve `409`.
+
+Erro no meio não perde o que já foi salvo: o upsert é por `videoId`, então basta coletar de novo para retomar.
 
 ---
 
@@ -309,6 +375,56 @@ O DOCX gerado contém:
 
 ---
 
+### Chaves da Groq
+
+| Método | Rota | Auth | Descrição |
+|---|---|---|---|
+| `GET` | `/groq-key` | ✅ | Listar a fila de chaves (só o preview mascarado) |
+| `POST` | `/groq-key` | ✅ | Cadastrar uma chave — valida na Groq antes de salvar |
+| `DELETE` | `/groq-key/:id` | 🔒 Admin | Remover |
+| `PATCH` | `/groq-key/:id/reativar` | 🔒 Admin | Forçar uma chave de volta para `ATIVA` |
+
+Uma chave só da Groq é um ponto único de falha: ao bater o limite de tokens, **tudo** para — coleta, sinopse e relatório. A API mantém uma **fila de chaves** e troca sozinha.
+
+A cada chamada, usa a chave `ATIVA` menos usada recentemente. Se a Groq responder:
+
+- **429** (limite de tokens) → a chave vira `ESGOTADA`, com `resetAt` lido do header `retry-after`, e a chamada é **repetida na próxima chave**.
+- **401/403** (chave inválida) → a chave vira `INVALIDA` e a chamada é **repetida na próxima chave**.
+- qualquer outro erro → propaga (trocar de chave não resolveria).
+
+Quem chamou nunca vê o erro. Acabando a fila, aí sim: `503` com "cadastre uma nova".
+Chaves `ESGOTADA` cujo `resetAt` já passou voltam a `ATIVA` sozinhas, sem cron.
+
+**`POST /groq-key`**
+```json
+{ "label": "chave do Guilherme", "key": "gsk_..." }
+```
+
+Resposta — **a chave nunca é devolvida**, só o preview:
+```json
+{
+  "id": "uuid",
+  "label": "chave do Guilherme",
+  "preview": "gsk_…4f2a",
+  "status": "ATIVA",
+  "resetAt": null,
+  "lastUsedAt": null,
+  "criadoPor": "251000841"
+}
+```
+
+Pontos de segurança:
+
+1. A chave é **criptografada em repouso** (AES-256-GCM, via `APP_ENCRYPTION_KEY`) e **nunca sai da API** — nem para o admin. Chave que sai numa resposta acaba em log, cache e histórico do navegador.
+2. O `POST` **valida a chave contra a Groq antes de gravar**. Chave errada falha no cadastro, não no meio da coleta de outra pessoa.
+3. **Qualquer aluno logado pode cadastrar**, mas só o admin remove/reativa. A chave doada entra num pool compartilhado e **gasta tokens servindo os outros alunos** — isso precisa estar claro na interface de quem doa.
+
+> **Retrocompatível:** sem nenhuma chave no banco, tudo continua usando o `GROQ_API_KEY` do `.env`. Nada quebra enquanto a primeira não for cadastrada.
+
+> Trocar a `APP_ENCRYPTION_KEY` torna ilegíveis as chaves já gravadas — elas são marcadas como `INVALIDA` e precisam ser cadastradas de novo.
+
+---
+
 ## Autenticação
 
 A API usa **JWT Bearer Token**. Após o login/registro, inclua o token no header:
@@ -341,10 +457,12 @@ O token expira conforme `JWT_EXPIRES_IN` (padrão `7d`).
 
 ```
 Usuario ──┬── Persona (1:1)
-          └── Relatorio (1:N)
+          ├── Relatorio (1:N)
+          └── GroqKey (1:N)
 
 Semestre ─┬── Capela (1:N) ── Sinopse (1:1)
-          └── Relatorio (1:N)
+          ├── Relatorio (1:N)
+          └── Coleta (1:N)
 ```
 
 | Tabela | Chave primária | Destaques |
@@ -352,9 +470,11 @@ Semestre ─┬── Capela (1:N) ── Sinopse (1:1)
 | `usuarios` | `ra` (VARCHAR 20) | email único, senhaHash bcrypt |
 | `personas` | UUID | tipo MBTI (4 chars), tom descritivo |
 | `semestres` | UUID | label único, range de datas, flag `ativo` |
-| `capelas` | UUID | videoId único, índice por semestre |
+| `capelas` | UUID | videoId único, índice por semestre; **textoBiblico/tema/pregador anuláveis** |
 | `sinopses` | UUID | texto gerado por IA, vinculado 1:1 à chapel |
 | `relatorios` | UUID | docx em base64, status, foco criativo |
+| `coletas` | UUID | job de coleta: status, progresso, log por capela |
+| `groq_keys` | UUID | fila de chaves; chave cifrada (AES-256-GCM), status, `resetAt` |
 
 ---
 

@@ -10,7 +10,15 @@ JWT_SECRET=suasenha
 JWT_EXPIRES_IN=7d
 
 # ─── Groq AI ─────────────────────────────────────────────────────────────────
+# Chave de fallback: usada só enquanto não houver nenhuma chave cadastrada em
+# POST /groq-key. Cadastrada a primeira, a fila do banco assume.
 GROQ_API_KEY=gsk_...
+
+# ─── Criptografia ─────────────────────────────────────────────────────────────
+# Cifra as chaves da Groq em repouso (AES-256-GCM). Trocar esta chave torna
+# ilegíveis as chaves já gravadas — elas serão marcadas como INVALIDA.
+# Gere com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+APP_ENCRYPTION_KEY=
 
 # ─── YouTube Data API ─────────────────────────────────────────────────────────
 YOUTUBE_API_KEY=AIza...

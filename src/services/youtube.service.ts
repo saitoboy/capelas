@@ -24,8 +24,10 @@ const ytAxios = axios.create({
   proxy:      false,
 });
 
-const CHAPEL_KEYWORD = process.env.CHAPEL_KEYWORD ?? 'Devoção na Capela';
-const CHAPEL_WEEKDAY = Number(process.env.CHAPEL_WEEKDAY ?? 3);
+// Defaults do .env — usados quando a chamada não passa o filtro explicitamente.
+const DEFAULT_KEYWORD = process.env.CHAPEL_KEYWORD ?? 'Devoção na Capela';
+const DEFAULT_WEEKDAY = Number(process.env.CHAPEL_WEEKDAY ?? 3);
+const DEFAULT_CANAL   = process.env.CHANNEL_HANDLE ?? '';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Resultado de coleta
@@ -37,10 +39,34 @@ export interface ChapelCollected {
   dataISO:      string;   // "YYYY-MM-DD"
   videoId:      string;
   url:          string;
-  textoBiblico: string;
-  tema:         string;
-  pregador:     string;
+  // null = a IA não conseguiu extrair. Fica em branco para o admin preencher
+  // à mão depois de assistir ao vídeo. Nunca "(não encontrado)": um placeholder
+  // gravado como texto vira dado falso no relatório do aluno.
+  textoBiblico: string | null;
+  tema:         string | null;
+  pregador:     string | null;
   _source:      string;
+}
+
+export interface CollectOpts {
+  publishedAfter:  string;   // ISO 8601
+  publishedBefore: string;   // ISO 8601
+  canal?:          string;   // "@souseminariodosul"
+  keyword?:        string;
+  weekday?:        number;   // 0 = domingo … 6 = sábado
+  /** Chamado a cada capela concluída — alimenta o polling do front. */
+  onProgress?: (info: {
+    etapa:       string;
+    processadas: number;
+    total:       number;
+    item?:       ChapelCollected;
+  }) => Promise<void> | void;
+}
+
+export interface CollectResult {
+  chapels: ChapelCollected[];
+  /** Vídeos do canal que os filtros descartaram — sem isto, some capela em silêncio. */
+  ignorados: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -54,8 +80,8 @@ function parseDateFromTitle(title: string): Date | null {
   return new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
 }
 
-function isChapelDay(date: Date): boolean {
-  return date.getDay() === CHAPEL_WEEKDAY;
+function isChapelDay(date: Date, weekday: number): boolean {
+  return date.getDay() === weekday;
 }
 
 function formatDate(date: Date): string {
@@ -72,8 +98,8 @@ function toISODate(date: Date): string {
 // YouTube Data API
 // ──────────────────────────────────────────────────────────────────────────────
 
-export async function resolveChannelId(): Promise<string> {
-  const handle = (process.env.CHANNEL_HANDLE ?? '').replace('@', '');
+export async function resolveChannelId(canal?: string): Promise<string> {
+  const handle = (canal ?? DEFAULT_CANAL).replace('@', '');
   const res = await ytAxios.get('/channels', {
     params: { part: 'id', forHandle: handle, key: process.env.YOUTUBE_API_KEY },
   });
@@ -259,26 +285,40 @@ async function extractChapelData(
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Coleta capelas do YouTube entre as datas fornecidas.
- * @param publishedAfter  ISO 8601, ex: "2026-02-01T00:00:00Z"
- * @param publishedBefore ISO 8601, ex: "2026-07-01T00:00:00Z"
+ * Coleta capelas do YouTube no período e com os filtros dados.
+ *
+ * É a operação mais cara do sistema: faz ~3 chamadas de IA por capela
+ * (comentários → Groq → transcrição → Groq → sinopse). Por isso reporta
+ * progresso via `onProgress` e é sempre chamada de dentro de um job.
  */
-export async function collectChapels(
-  publishedAfter:  string,
-  publishedBefore: string,
-): Promise<ChapelCollected[]> {
-  const channelId = await resolveChannelId();
+export async function collectChapels(opts: CollectOpts): Promise<CollectResult> {
+  const {
+    publishedAfter,
+    publishedBefore,
+    canal,
+    keyword    = DEFAULT_KEYWORD,
+    weekday    = DEFAULT_WEEKDAY,
+    onProgress,
+  } = opts;
+
+  await onProgress?.({ etapa: 'Localizando o canal no YouTube…', processadas: 0, total: 0 });
+
+  const channelId = await resolveChannelId(canal);
   logSuccess(`Canal encontrado: ${channelId}`, 'youtube');
+
+  await onProgress?.({ etapa: 'Buscando vídeos no período…', processadas: 0, total: 0 });
 
   const streams = await fetchAllStreams(channelId, publishedAfter, publishedBefore);
   logSuccess(`Streams encontrados: ${streams.length}`, 'youtube');
 
+  // Vídeos descartados aqui não somem em silêncio: o total volta como
+  // `ignorados` e a tela do admin mostra "N vídeos ignorados".
   const chapels = streams
     .filter(v => {
       const title = v.snippet.title ?? '';
-      if (!title.includes(CHAPEL_KEYWORD)) return false;
+      if (!title.includes(keyword)) return false;
       const date = parseDateFromTitle(title);
-      return date && isChapelDay(date);
+      return date !== null && isChapelDay(date, weekday);
     })
     .sort((a: any, b: any) => {
       const da = parseDateFromTitle(a.snippet.title)!;
@@ -286,31 +326,51 @@ export async function collectChapels(
       return da.getTime() - db.getTime();
     });
 
-  logSuccess(`Capelas identificadas: ${chapels.length}`, 'youtube');
+  const ignorados = streams.length - chapels.length;
+  const total     = chapels.length;
+
+  logSuccess(`Capelas identificadas: ${total} (ignorados: ${ignorados})`, 'youtube');
+
+  await onProgress?.({ etapa: `${total} capelas identificadas.`, processadas: 0, total });
 
   const result: ChapelCollected[] = [];
 
-  for (let i = 0; i < chapels.length; i++) {
+  for (let i = 0; i < total; i++) {
     const v       = chapels[i];
     const videoId = v.id.videoId as string;
     const date    = parseDateFromTitle(v.snippet.title)!;
 
+    await onProgress?.({
+      etapa:       `Extraindo dados da capela ${i + 1} de ${total}…`,
+      processadas: i,
+      total,
+    });
+
     const extracted = await extractChapelData(videoId);
 
-    result.push({
+    const item: ChapelCollected = {
       indice:       i + 1,
       data:         formatDate(date),
       dataISO:      toISODate(date),
       videoId,
       url:          `https://www.youtube.com/watch?v=${videoId}`,
-      textoBiblico: extracted.textoBiblico ?? '(não encontrado)',
-      tema:         extracted.tema         ?? '(não encontrado)',
-      pregador:     extracted.pregador     ?? '(não encontrado)',
+      textoBiblico: extracted.textoBiblico, // null quando a IA não achou —
+      tema:         extracted.tema,         // o admin preenche à mão depois
+      pregador:     extracted.pregador,
       _source:      extracted._source,
+    };
+
+    result.push(item);
+
+    await onProgress?.({
+      etapa:       `Capela ${i + 1} de ${total} processada.`,
+      processadas: i + 1,
+      total,
+      item,
     });
 
-    logSuccess(`[${i + 1}/${chapels.length}] ${formatDate(date)} — ${extracted._source}`, 'youtube');
+    logSuccess(`[${i + 1}/${total}] ${formatDate(date)} — ${extracted._source}`, 'youtube');
   }
 
-  return result;
+  return { chapels: result, ignorados };
 }
