@@ -1,7 +1,7 @@
 import prisma from '../utils/prisma';
 import { encrypt, maskSecret } from '../utils/crypto';
 import { validarChaveGroq } from '../utils/groq';
-import { reativarExpiradas } from '../utils/groqKeys';
+import { reativarExpiradas, diaUTC } from '../utils/groqKeys';
 import { GroqKeyPublica, CreateGroqKeyBody } from '../types';
 import { logSuccess } from '../utils/logger';
 
@@ -10,17 +10,30 @@ import { logSuccess } from '../utils/logger';
 // chave que sai numa resposta de API acaba em log, cache e histórico.
 // ──────────────────────────────────────────────────────────────────────────────
 
-const toPublico = (k: any): GroqKeyPublica => ({
-  id:         k.id,
-  label:      k.label,
-  preview:    k.preview,
-  status:     k.status,
-  resetAt:    k.resetAt,
-  lastUsedAt: k.lastUsedAt,
-  erroMsg:    k.erroMsg,
-  criadoPor:  k.criadoPor,
-  createdAt:  k.createdAt,
-});
+// Cota diária de tokens (TPD) do plano — é por conta, então vem do .env. O
+// número certo é o que aparece no console.groq.com (Settings › Limits). Sem
+// ele, o front não consegue mostrar % e esconde a barra.
+const GROQ_TPD = Number(process.env.GROQ_TPD) || 0;
+
+const toPublico = (k: any): GroqKeyPublica => {
+  // tokensHoje só vale se for do dia de hoje (UTC); virou o dia sem uso novo,
+  // a cota já zerou lá na Groq — mostramos 0 sem precisar escrever no banco.
+  const doDia = k.tokensDia?.getTime?.() === diaUTC().getTime();
+
+  return {
+    id:         k.id,
+    label:      k.label,
+    preview:    k.preview,
+    status:     k.status,
+    resetAt:    k.resetAt,
+    lastUsedAt: k.lastUsedAt,
+    erroMsg:    k.erroMsg,
+    criadoPor:  k.criadoPor,
+    createdAt:  k.createdAt,
+    tokensHoje: doDia ? k.tokensHoje : 0,
+    tpd:        GROQ_TPD || null,
+  };
+};
 
 // ──────────────────────────────────────────────────────────────────────────────
 

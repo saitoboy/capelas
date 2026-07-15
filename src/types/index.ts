@@ -190,6 +190,8 @@ export interface GroqKeyPublica {
   erroMsg:    string | null;
   criadoPor:  string;
   createdAt:  Date;
+  tokensHoje: number;         // tokens gastos hoje (cota diária TPD)
+  tpd:        number | null;  // limite diário do plano; null = GROQ_TPD não configurado
 }
 
 export interface CreateGroqKeyBody {

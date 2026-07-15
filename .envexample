@@ -14,6 +14,11 @@ JWT_EXPIRES_IN=7d
 # POST /groq-key. Cadastrada a primeira, a fila do banco assume.
 GROQ_API_KEY=gsk_...
 
+# Cota diária de tokens (TPD) do plano, por chave. É o número que aparece no
+# console.groq.com em Settings › Limits para o modelo usado. Alimenta a barra
+# de "% da cota usada hoje" na tela de chaves. Sem isto, a barra fica escondida.
+GROQ_TPD=100000
+
 # ─── Criptografia ─────────────────────────────────────────────────────────────
 # Cifra as chaves da Groq em repouso (AES-256-GCM). Trocar esta chave torna
 # ilegíveis as chaves já gravadas — elas serão marcadas como INVALIDA.

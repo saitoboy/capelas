@@ -95,6 +95,8 @@ model GroqKey {
   resetAt    DateTime? @map("reset_at")      // quando a Groq disse que o limite volta
   lastUsedAt DateTime? @map("last_used_at")  // ordena a fila (round-robin natural)
   erroMsg    String?   @map("erro_msg")
+  tokensHoje Int       @default(0) @map("tokens_hoje") // tokens gastos na cota do dia
+  tokensDia  DateTime? @map("tokens_dia") @db.Date     // dia (UTC) a que tokensHoje se refere
   criadoPor  String    @map("criado_por") @db.VarChar(20) // ra de quem cadastrou
   createdAt  DateTime  @default(now()) @map("created_at")
 

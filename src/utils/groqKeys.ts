@@ -78,11 +78,34 @@ export async function listarChavesUsaveis(): Promise<ChaveUsavel[]> {
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-export async function registrarUso(id: string | null): Promise<void> {
+/** Meia-noite UTC do dia de `d` — a Groq zera a cota diária (TPD) em UTC. */
+export function diaUTC(d: Date = new Date()): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+export async function registrarUso(id: string | null, tokens = 0): Promise<void> {
   if (!id) return; // chave do .env não tem registro
+
+  const hoje = diaUTC();
+
+  // Contador é acumulado dentro do dia; quando tokensDia é de outro dia (ou nulo),
+  // a cota virou — recomeça do zero. Sem cron: o próprio uso faz o reset.
+  const chave = await prisma.groqKey.findUnique({
+    where:  { id },
+    select: { tokensDia: true, tokensHoje: true },
+  });
+  if (!chave) return;
+
+  const mesmoDia = chave.tokensDia?.getTime() === hoje.getTime();
+  const base = mesmoDia ? chave.tokensHoje : 0;
+
   await prisma.groqKey.update({
     where: { id },
-    data:  { lastUsedAt: new Date() },
+    data: {
+      lastUsedAt: new Date(),
+      tokensHoje: base + tokens,
+      tokensDia:  hoje,
+    },
   });
 }
 

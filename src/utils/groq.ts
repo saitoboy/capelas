@@ -51,8 +51,14 @@ interface GroqOpts {
   temperature?: number;
 }
 
+interface GroqResultado {
+  conteudo: string;
+  /** total_tokens da resposta — alimenta a cota diária (TPD) da chave. */
+  tokens: number;
+}
+
 /** Uma tentativa, com uma chave específica. Deixa o erro do axios subir. */
-async function postGroq(apiKey: string, prompt: string, opts: GroqOpts): Promise<string> {
+async function postGroq(apiKey: string, prompt: string, opts: GroqOpts): Promise<GroqResultado> {
   const res = await axios.post(
     'https://api.groq.com/openai/v1/chat/completions',
     {
@@ -70,7 +76,10 @@ async function postGroq(apiKey: string, prompt: string, opts: GroqOpts): Promise
       proxy: false, // evita conflito com variáveis de ambiente de proxy do axios
     }
   );
-  return res.data.choices[0].message.content as string;
+  return {
+    conteudo: res.data.choices[0].message.content as string,
+    tokens:   Number(res.data.usage?.total_tokens) || 0,
+  };
 }
 
 /**
@@ -99,8 +108,8 @@ async function callGroqRaw(prompt: string, opts: GroqOpts = {}): Promise<string>
 
   for (const chave of chaves) {
     try {
-      const conteudo = await postGroq(chave.key, prompt, opts);
-      await registrarUso(chave.id);
+      const { conteudo, tokens } = await postGroq(chave.key, prompt, opts);
+      await registrarUso(chave.id, tokens);
       return conteudo;
     } catch (err: any) {
       const status  = err.response?.status;
