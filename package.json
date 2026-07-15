@@ -9,6 +9,8 @@
     "dev:full": "concurrently --names \"API,STUDIO\" --prefix-colors \"cyan,magenta\" \"npm run dev\" \"npm run studio\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "build": "prisma generate && tsc",
+    "start": "prisma migrate deploy && node build/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

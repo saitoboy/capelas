@@ -3,21 +3,124 @@ export const swaggerSpec = {
   info: {
     title: 'Capela API',
     version: '1.0.0',
-    description: 'API de gestão de capelas, relatórios e personas para alunos.',
+    description:
+      'API de gestão de capelas, relatórios, personas, usuários e chaves da Groq.',
   },
-  servers: [{ url: 'http://localhost:3003' }],
+  // Origem relativa: o "Try it out" bate no mesmo host onde o /docs está aberto,
+  // então funciona igual em localhost e em produção.
+  servers: [{ url: '/', description: 'Mesma origem' }],
+  tags: [
+    { name: 'Auth' },
+    { name: 'Usuário' },
+    { name: 'Semestre' },
+    { name: 'Capela' },
+    { name: 'Sinopse' },
+    { name: 'Persona' },
+    { name: 'Relatório' },
+    { name: 'Chaves Groq' },
+  ],
   components: {
     securitySchemes: {
-      bearerAuth: {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-      },
+      bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
     },
     schemas: {
       Error: {
         type: 'object',
         properties: { mensagem: { type: 'string' } },
+      },
+
+      Usuario: {
+        type: 'object',
+        properties: {
+          ra:        { type: 'string', example: '251000841' },
+          nome:      { type: 'string', example: 'Débora Silva' },
+          email:     { type: 'string', format: 'email', example: 'debora@email.com' },
+          curso:     { type: 'string', enum: ['TEOLOGIA'], example: 'TEOLOGIA' },
+          isAdmin:   { type: 'boolean', example: false },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+
+      Capela: {
+        type: 'object',
+        properties: {
+          id:           { type: 'string', format: 'uuid' },
+          semestreId:   { type: 'string', format: 'uuid' },
+          indice:       { type: 'integer', example: 7 },
+          data:         { type: 'string', format: 'date', example: '2026-04-28' },
+          videoId:      { type: 'string', nullable: true, example: 'dQw4w9WgXcQ' },
+          url:          { type: 'string', nullable: true },
+          // null = a IA não extraiu; falta o admin preencher à mão.
+          textoBiblico: { type: 'string', nullable: true, example: 'Salmos 27:4-8' },
+          tema:         { type: 'string', nullable: true, example: 'O chamado ministerial' },
+          pregador:     { type: 'string', nullable: true, example: 'Pastor Artur' },
+          source:       { type: 'string', example: 'descricao' },
+          createdAt:    { type: 'string', format: 'date-time' },
+          sinopse:      { $ref: '#/components/schemas/Sinopse' },
+        },
+      },
+
+      Sinopse: {
+        type: 'object',
+        properties: {
+          id:       { type: 'string', format: 'uuid' },
+          capelaId: { type: 'string', format: 'uuid' },
+          texto:    { type: 'string' },
+          geradoEm: { type: 'string', format: 'date-time' },
+        },
+      },
+
+      ColetaItem: {
+        type: 'object',
+        properties: {
+          indice:   { type: 'integer', example: 7 },
+          tema:     { type: 'string', nullable: true },
+          source:   { type: 'string', example: 'comentarios' },
+          faltando: {
+            type: 'array',
+            items: { type: 'string' },
+            example: ['tema'],
+          },
+          erro: { type: 'string' },
+        },
+      },
+
+      Coleta: {
+        type: 'object',
+        description: 'Job de coleta em background. O progresso é lido por GET /capela/coletar/{id}.',
+        properties: {
+          id:          { type: 'string', format: 'uuid' },
+          semestreId:  { type: 'string', format: 'uuid' },
+          status:      { type: 'string', enum: ['GERANDO', 'CONCLUIDO', 'ERRO'] },
+          etapa:       { type: 'string', nullable: true },
+          total:       { type: 'integer' },
+          processadas: { type: 'integer' },
+          inseridas:   { type: 'integer' },
+          atualizadas: { type: 'integer' },
+          ignorados:   { type: 'integer' },
+          itens:       { type: 'array', items: { $ref: '#/components/schemas/ColetaItem' } },
+          erroMsg:     { type: 'string', nullable: true },
+          createdAt:   { type: 'string', format: 'date-time' },
+          updatedAt:   { type: 'string', format: 'date-time' },
+        },
+      },
+
+      GroqKey: {
+        type: 'object',
+        description: 'A chave em si nunca volta — só o preview mascarado.',
+        properties: {
+          id:         { type: 'string', format: 'uuid' },
+          label:      { type: 'string', example: 'chave do Guilherme' },
+          preview:    { type: 'string', example: 'gsk_…IpVr' },
+          status:     { type: 'string', enum: ['ATIVA', 'ESGOTADA', 'INVALIDA'] },
+          resetAt:    { type: 'string', format: 'date-time', nullable: true },
+          lastUsedAt: { type: 'string', format: 'date-time', nullable: true },
+          erroMsg:    { type: 'string', nullable: true },
+          criadoPor:  { type: 'string', example: '251000841' },
+          createdAt:  { type: 'string', format: 'date-time' },
+          tokensHoje: { type: 'integer', description: 'Tokens gastos hoje (cota diária TPD).', example: 12340 },
+          tpd:        { type: 'integer', nullable: true, description: 'Limite diário; null se GROQ_TPD não configurado.', example: 100000 },
+        },
       },
     },
   },
@@ -40,19 +143,16 @@ export const swaggerSpec = {
                   email:        { type: 'string', format: 'email', example: 'debora@email.com' },
                   senha:        { type: 'string', example: '@Debora123' },
                   confirmSenha: { type: 'string', example: '@Debora123' },
-                  curso: {
-                    type: 'string',
-                    enum: ['TEOLOGIA', 'PEDAGOGIA', 'ENFERMAGEM', 'ADMINISTRACAO', 'DIREITO'],
-                    example: 'TEOLOGIA',
-                  },
+                  curso:        { type: 'string', enum: ['TEOLOGIA'], example: 'TEOLOGIA' },
                 },
               },
             },
           },
         },
         responses: {
-          201: { description: 'Usuário criado' },
-          409: { description: 'RA já cadastrado' },
+          201: { description: 'Usuário criado + token JWT' },
+          400: { description: 'Campos faltando ou senhas divergentes' },
+          409: { description: 'RA ou e-mail já cadastrado' },
         },
       },
     },
@@ -76,7 +176,7 @@ export const swaggerSpec = {
           },
         },
         responses: {
-          200: { description: 'Token JWT retornado' },
+          200: { description: 'Token JWT + usuário' },
           401: { description: 'Credenciais inválidas' },
         },
       },
@@ -87,8 +187,138 @@ export const swaggerSpec = {
         summary: 'Ver meus dados',
         security: [{ bearerAuth: [] }],
         responses: {
-          200: { description: 'Dados do usuário logado' },
+          200: {
+            description: 'Usuário logado',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Usuario' } } },
+          },
           401: { description: 'Token inválido' },
+        },
+      },
+    },
+
+    /* ─── USUÁRIO (admin) ───────────────────────────────────── */
+    '/usuario': {
+      get: {
+        tags: ['Usuário'],
+        summary: 'Listar usuários (admin)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Array de usuários (mais recentes primeiro)',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/Usuario' } },
+              },
+            },
+          },
+          403: { description: 'Acesso restrito a administradores' },
+        },
+      },
+      post: {
+        tags: ['Usuário'],
+        summary: 'Criar usuário (admin)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['ra', 'nome', 'email', 'senha', 'curso'],
+                properties: {
+                  ra:      { type: 'string', example: '251000841' },
+                  nome:    { type: 'string', example: 'Débora Silva' },
+                  email:   { type: 'string', format: 'email', example: 'debora@email.com' },
+                  senha:   { type: 'string', minLength: 6, example: 'trocar123' },
+                  curso:   { type: 'string', enum: ['TEOLOGIA'], example: 'TEOLOGIA' },
+                  isAdmin: { type: 'boolean', default: false },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Usuário criado',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Usuario' } } },
+          },
+          400: { description: 'Campos faltando ou senha curta' },
+          403: { description: 'Acesso restrito a administradores' },
+          409: { description: 'RA ou e-mail já cadastrado' },
+        },
+      },
+    },
+    '/usuario/{ra}': {
+      patch: {
+        tags: ['Usuário'],
+        summary: 'Editar usuário (admin)',
+        description: 'Campo omitido não muda. O admin não pode remover o próprio acesso de admin.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'ra', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  nome:    { type: 'string' },
+                  email:   { type: 'string', format: 'email' },
+                  curso:   { type: 'string', enum: ['TEOLOGIA'] },
+                  isAdmin: { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Usuário atualizado',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Usuario' } } },
+          },
+          400: { description: 'Tentativa de remover o próprio admin' },
+          403: { description: 'Acesso restrito a administradores' },
+          404: { description: 'Usuário não encontrado' },
+          409: { description: 'E-mail já cadastrado' },
+        },
+      },
+      delete: {
+        tags: ['Usuário'],
+        summary: 'Remover usuário (admin)',
+        description: 'Apaga em cascata a persona, os relatórios e as chaves da conta. O admin não pode remover a própria conta.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'ra', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          204: { description: 'Removido' },
+          400: { description: 'Tentativa de remover a própria conta' },
+          403: { description: 'Acesso restrito a administradores' },
+          404: { description: 'Usuário não encontrado' },
+        },
+      },
+    },
+    '/usuario/{ra}/senha': {
+      patch: {
+        tags: ['Usuário'],
+        summary: 'Trocar senha de um usuário (admin)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'ra', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['senha'],
+                properties: { senha: { type: 'string', minLength: 6, example: 'novaSenha123' } },
+              },
+            },
+          },
+        },
+        responses: {
+          204: { description: 'Senha trocada' },
+          400: { description: 'Senha muito curta' },
+          403: { description: 'Acesso restrito a administradores' },
+          404: { description: 'Usuário não encontrado' },
         },
       },
     },
@@ -148,6 +378,7 @@ export const swaggerSpec = {
       patch: {
         tags: ['Semestre'],
         summary: 'Ativar semestre (admin)',
+        description: 'Ativar um semestre desativa os demais — só um fica ativo por vez.',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Semestre ativado' }, 403: { description: 'Acesso negado' } },
@@ -159,56 +390,25 @@ export const swaggerSpec = {
       get: {
         tags: ['Capela'],
         summary: 'Listar capelas do semestre',
-        parameters: [{ name: 'semestreId', in: 'query', required: true, schema: { type: 'string' }, example: 'uuid-do-semestre' }],
-        responses: { 200: { description: 'Array de capelas' } },
-      },
-    },
-    '/capela/{id}': {
-      get: {
-        tags: ['Capela'],
-        summary: 'Buscar chapel por ID',
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 200: { description: 'Chapel encontrada' }, 404: { description: 'Não encontrada' } },
-      },
-      delete: {
-        tags: ['Capela'],
-        summary: 'Deletar chapel (admin)',
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 204: { description: 'Deletada' }, 403: { description: 'Acesso negado' } },
-      },
-    },
-    '/capela/manual': {
-      post: {
-        tags: ['Capela'],
-        summary: 'Inserir chapel manual (admin)',
-        security: [{ bearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                required: ['semestreId', 'indice', 'data', 'textoBiblico', 'tema', 'pregador'],
-                properties: {
-                  semestreId: { type: 'string', example: 'uuid-do-semestre' },
-                  indice:        { type: 'integer', example: 1 },
-                  data:          { type: 'string', format: 'date', example: '2026-03-05' },
-                  textoBiblico:  { type: 'string', example: 'João 3:16' },
-                  tema:          { type: 'string', example: 'O Amor de Deus' },
-                  pregador:      { type: 'string', example: 'Pastor Richard Blackaby' },
-                },
+        parameters: [{ name: 'semestreId', in: 'query', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Array de capelas',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/Capela' } },
               },
             },
           },
+          400: { description: 'Query semestreId faltando' },
         },
-        responses: { 201: { description: 'Chapel criada' } },
       },
     },
     '/capela/coletar': {
       post: {
         tags: ['Capela'],
-        summary: 'Coletar capelas do YouTube (admin)',
+        summary: 'Iniciar coleta do YouTube (admin)',
+        description: 'Dispara o job e responde 202 na hora — o trabalho roda em background. Campos omitidos caem nas datas do semestre e nos defaults do servidor.',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -217,12 +417,149 @@ export const swaggerSpec = {
               schema: {
                 type: 'object',
                 required: ['semestreId'],
-                properties: { semestreId: { type: 'string', example: 'uuid-do-semestre' } },
+                properties: {
+                  semestreId:      { type: 'string', format: 'uuid' },
+                  publishedAfter:  { type: 'string', format: 'date-time' },
+                  publishedBefore: { type: 'string', format: 'date-time' },
+                  canal:           { type: 'string', example: '@souseminariodosul' },
+                  keyword:         { type: 'string', example: 'Devoção na Capela' },
+                  weekday:         { type: 'integer', minimum: 0, maximum: 6, description: '0 = domingo … 6 = sábado' },
+                  gerarSinopses:   { type: 'boolean', default: true },
+                },
               },
             },
           },
         },
-        responses: { 200: { description: '{ inseridas, atualizadas, erros[] }' } },
+        responses: {
+          202: {
+            description: 'Job de coleta criado (status GERANDO)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Coleta' } } },
+          },
+          400: { description: 'semestreId faltando ou weekday inválido' },
+          403: { description: 'Acesso negado' },
+        },
+      },
+      get: {
+        tags: ['Capela'],
+        summary: 'Histórico de coletas do semestre (admin)',
+        description: 'A coleta mais recente vem primeiro — permite retomar o acompanhamento de um job.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'semestreId', in: 'query', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Array de coletas',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/Coleta' } },
+              },
+            },
+          },
+          400: { description: 'Query semestreId faltando' },
+          403: { description: 'Acesso negado' },
+        },
+      },
+    },
+    '/capela/coletar/{id}': {
+      get: {
+        tags: ['Capela'],
+        summary: 'Progresso de uma coleta (admin)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Estado atual do job',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Coleta' } } },
+          },
+          403: { description: 'Acesso negado' },
+          404: { description: 'Coleta não encontrada' },
+        },
+      },
+    },
+    '/capela/manual': {
+      post: {
+        tags: ['Capela'],
+        summary: 'Inserir capela manualmente (admin)',
+        description: 'textoBiblico, tema e pregador são opcionais — dá para criar agora e preencher depois com PATCH /capela/{id}.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['semestreId', 'indice', 'data'],
+                properties: {
+                  semestreId:   { type: 'string', format: 'uuid' },
+                  indice:       { type: 'integer', example: 1 },
+                  data:         { type: 'string', format: 'date', example: '2026-03-05' },
+                  textoBiblico: { type: 'string', nullable: true, example: 'João 3:16' },
+                  tema:         { type: 'string', nullable: true, example: 'O Amor de Deus' },
+                  pregador:     { type: 'string', nullable: true, example: 'Pastor Richard' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Capela criada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Capela' } } },
+          },
+          400: { description: 'Campos obrigatórios faltando' },
+          403: { description: 'Acesso negado' },
+        },
+      },
+    },
+    '/capela/{id}': {
+      get: {
+        tags: ['Capela'],
+        summary: 'Buscar capela por ID',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Capela encontrada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Capela' } } },
+          },
+          404: { description: 'Não encontrada' },
+        },
+      },
+      patch: {
+        tags: ['Capela'],
+        summary: 'Editar capela — preencher o que a IA não achou (admin)',
+        description: 'Campo omitido fica como está; null explícito limpa o campo.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  textoBiblico: { type: 'string', nullable: true },
+                  tema:         { type: 'string', nullable: true },
+                  pregador:     { type: 'string', nullable: true },
+                  data:         { type: 'string', format: 'date' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Capela atualizada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Capela' } } },
+          },
+          403: { description: 'Acesso negado' },
+          404: { description: 'Não encontrada' },
+        },
+      },
+      delete: {
+        tags: ['Capela'],
+        summary: 'Deletar capela (admin)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { 204: { description: 'Deletada' }, 403: { description: 'Acesso negado' } },
       },
     },
 
@@ -230,16 +567,30 @@ export const swaggerSpec = {
     '/sinopse/{capelaId}': {
       get: {
         tags: ['Sinopse'],
-        summary: 'Buscar sinopse de uma chapel',
+        summary: 'Buscar sinopse de uma capela',
         parameters: [{ name: 'capelaId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 200: { description: 'Sinopse encontrada' }, 404: { description: 'Ainda não gerada' } },
+        responses: {
+          200: {
+            description: 'Sinopse encontrada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Sinopse' } } },
+          },
+          404: { description: 'Ainda não gerada' },
+        },
       },
       post: {
         tags: ['Sinopse'],
-        summary: 'Gerar sinopse para uma chapel (admin)',
+        summary: 'Gerar sinopse para uma capela (admin)',
+        description: 'Exige tema ou texto bíblico preenchido — sem nenhum dos dois, a IA recusa (422).',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'capelaId', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { 201: { description: '{ id, capelaId, texto, geradoEm }' } },
+        responses: {
+          201: {
+            description: 'Sinopse gerada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Sinopse' } } },
+          },
+          403: { description: 'Acesso negado' },
+          422: { description: 'Sem tema nem texto bíblico' },
+        },
       },
     },
 
@@ -259,9 +610,9 @@ export const swaggerSpec = {
                     type: 'object',
                     properties: {
                       id:       { type: 'integer', example: 1 },
-                      pergunta: { type: 'string', example: 'Quando você chega para o culto, o que costuma fazer primeiro?' },
-                      opcaoA:   { type: 'string', example: 'Cumprimento várias pessoas e puxo conversa antes de sentar' },
-                      opcaoB:   { type: 'string', example: 'Prefiro sentar logo e ficar em silêncio, observando o ambiente' },
+                      pergunta: { type: 'string' },
+                      opcaoA:   { type: 'string' },
+                      opcaoB:   { type: 'string' },
                     },
                   },
                 },
@@ -388,6 +739,85 @@ export const swaggerSpec = {
             },
           },
           404: { description: 'Relatório não encontrado ou ainda não concluído' },
+        },
+      },
+    },
+
+    /* ─── CHAVES GROQ ───────────────────────────────────────── */
+    '/groq-key': {
+      get: {
+        tags: ['Chaves Groq'],
+        summary: 'Listar chaves da fila (logado)',
+        description: 'Qualquer aluno logado vê a fila — só o preview mascarado, nunca a chave.',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Array de chaves',
+            content: {
+              'application/json': {
+                schema: { type: 'array', items: { $ref: '#/components/schemas/GroqKey' } },
+              },
+            },
+          },
+          401: { description: 'Token inválido' },
+        },
+      },
+      post: {
+        tags: ['Chaves Groq'],
+        summary: 'Cadastrar chave na fila (logado)',
+        description: 'A chave é validada na Groq antes de gravar e fica criptografada em repouso.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['label', 'key'],
+                properties: {
+                  label: { type: 'string', example: 'chave do Guilherme' },
+                  key:   { type: 'string', example: 'gsk_...' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: 'Chave cadastrada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/GroqKey' } } },
+          },
+          400: { description: 'Chave inválida (não começa com gsk_ ou recusada pela Groq)' },
+          409: { description: 'Chave já cadastrada' },
+        },
+      },
+    },
+    '/groq-key/{id}': {
+      delete: {
+        tags: ['Chaves Groq'],
+        summary: 'Remover chave (admin)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          204: { description: 'Removida' },
+          403: { description: 'Acesso negado' },
+          404: { description: 'Chave não encontrada' },
+        },
+      },
+    },
+    '/groq-key/{id}/reativar': {
+      patch: {
+        tags: ['Chaves Groq'],
+        summary: 'Reativar chave esgotada/inválida (admin)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          200: {
+            description: 'Chave reativada',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/GroqKey' } } },
+          },
+          403: { description: 'Acesso negado' },
+          404: { description: 'Chave não encontrada' },
         },
       },
     },
