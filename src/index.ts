@@ -18,6 +18,7 @@ import semestreRoutes from "./routes/semestre.routes";
 import capelaRoutes from "./routes/capela.routes";
 import sinopseRoutes from "./routes/sinopse.routes";
 import groqKeyRoutes from "./routes/groqKey.routes";
+import usuarioRoutes from "./routes/usuario.routes";
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use("/semestre", semestreRoutes);
 app.use("/capela", capelaRoutes);
 app.use("/sinopse", sinopseRoutes);
 app.use("/groq-key", groqKeyRoutes);
+app.use("/usuario", usuarioRoutes);
 
 const port = process.env.PORT || 3003;
 

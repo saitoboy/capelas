@@ -43,6 +43,29 @@ export interface LoginBody {
   senha: string;
 }
 
+// Admin gerenciando usuários. Diferente do register: o admin escolhe isAdmin e
+// não devolve token — ninguém entra logado como a conta que acabou de criar.
+export interface AdminCreateUsuarioBody {
+  ra: string;
+  nome: string;
+  email: string;
+  senha: string;
+  curso: Curso;
+  isAdmin?: boolean;
+}
+
+// PATCH: todo campo é opcional. Senha fica de fora — tem rota própria.
+export interface AdminUpdateUsuarioBody {
+  nome?: string;
+  email?: string;
+  curso?: Curso;
+  isAdmin?: boolean;
+}
+
+export interface TrocarSenhaBody {
+  senha: string;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // PERSONA
 // ──────────────────────────────────────────────────────────────────────────────
