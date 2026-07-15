@@ -12,7 +12,10 @@ RUN npm ci
 
 # Copia o código e o schema, gera o Prisma Client e compila TS -> build/.
 COPY . .
-RUN npm run build
+# O prisma.config.ts exige DATABASE_URL só para CARREGAR (o generate nem conecta).
+# Passamos um valor fake apenas neste passo do build; em runtime o Easypanel
+# injeta o DATABASE_URL real, que o `migrate deploy` (no start) usa de verdade.
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" npm run build
 
 ENV NODE_ENV=production
 ENV PORT=3003
