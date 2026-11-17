@@ -48,8 +48,13 @@ async function processarRelatorio(relatorioId: string): Promise<void> {
     // faz a IA escrever reflexão em cima de dado que não existe.
     const ou = (v: string | null) => v?.trim() || 'não informado';
 
+    // A sinopse dá à IA o conteúdo da pregação, não só o título — sem ela a
+    // reflexão fica genérica.
     const chapelSummary = capelas
-      .map(c => `- ${c.data.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}: "${ou(c.tema)}" | Texto: ${ou(c.textoBiblico)} | Pregador: ${ou(c.pregador)}`)
+      .map(c => {
+        const linha = `- ${c.data.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}: "${ou(c.tema)}" | Texto: ${ou(c.textoBiblico)} | Pregador: ${ou(c.pregador)}`;
+        return c.sinopse ? `${linha}\n  Sinopse: ${c.sinopse.texto}` : linha;
+      })
       .join('\n');
 
     // ── Reflexão Teológica ────────────────────────────────────────────────────
@@ -60,15 +65,17 @@ Seu tom de escrita é: ${persona.tom}.
 Você assistiu às seguintes capelas ao longo do semestre ${semestre.label}:
 ${chapelSummary}
 
-Escreva a "Reflexão Teológica" do relatório semestral do Laboratório de Teologia e Liturgia.
-Mínimo de 20 linhas. Explique como as mensagens contribuíram para sua formação teológica,
-destaque temas recorrentes, aprofundamentos bíblicos relevantes e como as pregações afetaram
-sua compreensão da fé cristã e da missão da Igreja.
+Escreva a "Reflexão Teológica" do relatório semestral do Laboratório de Teologia e Liturgia:
+analise a exposição bíblica e os elementos teológicos utilizados nas pregações. Mínimo de 20 linhas.
+Siga o roteiro orientador do professor, cobrindo os três pontos:
+1. Contribuição Formativa: de que maneira as mensagens contribuíram para o seu amadurecimento teológico.
+2. Ênfases e Temas Recorrentes: verdades centrais, abordagens exegéticas ou tópicos doutrinários que se destacaram.
+3. Aplicação Prática e Missional: como essas exposições moldam sua visão de fé, vocação e a missão da Igreja.
 Use seu tom característico. Escreva em português formal, em parágrafos corridos,
 sem markdown, sem títulos, sem listas. Só o texto.
 `.trim();
 
-    const reflexaoTeologica = (await callGroq(promptReflexao, { temperature: temperatura, maxTokens: 2048 })).trim();
+    const reflexaoTeologica = (await callGroq(promptReflexao, { temperature: temperatura, maxTokens: 3000 })).trim();
 
     // ── Análise Litúrgica ─────────────────────────────────────────────────────
     const promptLiturgica = `
@@ -78,15 +85,17 @@ Seu tom de escrita é: ${persona.tom}.
 Você assistiu às seguintes capelas ao longo do semestre ${semestre.label}:
 ${chapelSummary}
 
-Escreva a "Análise Litúrgica" do relatório semestral do Laboratório de Teologia e Liturgia.
-Mínimo de 20 linhas. Avalie os elementos litúrgicos das capelas: organização dos cultos,
-orações, músicas, leituras, introduções e encerramentos. Reflita sobre como a liturgia
-contribuiu para a edificação da comunidade e destaque boas práticas observadas.
+Escreva a "Análise Litúrgica" do relatório semestral do Laboratório de Teologia e Liturgia:
+analise a estrutura, a ordem do culto, as escolhas litúrgicas e a dinâmica das capelas. Mínimo de 20 linhas.
+Siga o roteiro orientador do professor, cobrindo os três pontos:
+1. Estrutura e Coerência: como músicas, orações, leituras e transições se articularam organicamente.
+2. Edificação Comunitária: de que modo a condução do culto favoreceu a participação ativa e reverente da comunidade.
+3. Boas Práticas e Aprendizados: aspectos litúrgicos positivos e oportunidades de aprimoramento observadas.
 Use seu tom característico. Escreva em português formal, em parágrafos corridos,
 sem markdown, sem títulos, sem listas. Só o texto.
 `.trim();
 
-    const analiseLiturgica = (await callGroq(promptLiturgica, { temperature: temperatura, maxTokens: 2048 })).trim();
+    const analiseLiturgica = (await callGroq(promptLiturgica, { temperature: temperatura, maxTokens: 3000 })).trim();
 
     // ── Geração do .docx ──────────────────────────────────────────────────────
     const buffer = await generateDocx(

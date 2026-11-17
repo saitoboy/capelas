@@ -28,6 +28,7 @@
     "express": "^5.2.1",
     "https-proxy-agent": "^9.1.0",
     "jose": "^6.2.3",
+    "jszip": "^3.10.1",
     "swagger-ui-express": "^5.0.1",
     "undici": "^8.5.0",
     "youtube-caption-extractor": "^1.10.2"
