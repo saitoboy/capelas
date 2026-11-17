@@ -27,8 +27,12 @@ app.use(cors());
 
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Hora em que o processo subiu = hora do último deploy. O front mostra isso
+// no Admin para saber se a versão nova já está no ar.
+const iniciadoEm = new Date().toISOString();
+
 app.get("/", (_req: Request, res: Response) => {
-  res.json({ ok: true });
+  res.json({ ok: true, iniciadoEm });
 });
 
 app.use("/auth", authRoutes);
