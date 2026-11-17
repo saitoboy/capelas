@@ -5,6 +5,7 @@ import {
   buscarSemestrePorId,
   ativarSemestre,
   buscarSemestreAtivo,
+  excluirSemestre,
 } from '../services/semestre.service';
 import { AuthRequest, CreateSemestreBody } from '../types';
 import { logError } from '../utils/logger';
@@ -84,6 +85,17 @@ export const patchAtivar = async (req: AuthRequest, res: Response): Promise<void
     }
     const semestre = await ativarSemestre(id);
     res.json(semestre);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const deleteSemestre = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await excluirSemestre(req.params.id as string);
+    res.status(204).end();
   } catch (err) {
     handleError(res, err);
   }

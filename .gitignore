@@ -4,3 +4,4 @@ build/
 .env
 generated/
 src/docs/
+.easypanel.env

@@ -5,6 +5,7 @@ import {
   getSemestreAtivo,
   getSemestreById,
   patchAtivar,
+  deleteSemestre,
 } from '../controllers/semestre.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { adminOnly } from '../middleware/adminOnly.middleware';
@@ -19,5 +20,6 @@ router.get('/:id', getSemestreById);
 // Rotas admin
 router.post('/', authMiddleware, adminOnly, postSemestre);
 router.patch('/:id/ativar', authMiddleware, adminOnly, patchAtivar);
+router.delete('/:id', authMiddleware, adminOnly, deleteSemestre);
 
 export default router;

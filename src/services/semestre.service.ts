@@ -22,9 +22,14 @@ export const criarSemestre = async (body: CreateSemestreBody): Promise<SemestreP
     throw err;
   }
 
-  const semestre = await prisma.semestre.create({
-    data: { label, publishedAfter: after, publishedBefore: before },
-  });
+  const semestre = await prisma.semestre
+    .create({ data: { label, publishedAfter: after, publishedBefore: before } })
+    .catch((e: any) => {
+      if (e?.code !== 'P2002') throw e;
+      const err = new Error(`Já existe um semestre com o rótulo "${label}"`) as any;
+      err.status = 409;
+      throw err;
+    });
 
   logSuccess(`Semestre criado: ${label}`, 'semestre');
   return semestre;
@@ -83,4 +88,30 @@ export const buscarSemestreAtivo = async (): Promise<SemestrePublico> => {
   }
 
   return semestre;
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Capelas, sinopses e coletas caem junto (cascade). Relatório de aluno não:
+// é trabalho entregue, então bloqueia a exclusão em vez de sumir calado.
+export const excluirSemestre = async (id: string): Promise<void> => {
+  const semestre = await prisma.semestre.findUnique({
+    where:   { id },
+    include: { _count: { select: { relatorios: true } } },
+  });
+  if (!semestre) {
+    const err = new Error('Semestre não encontrado') as any;
+    err.status = 404;
+    throw err;
+  }
+  if (semestre._count.relatorios > 0) {
+    const err = new Error(
+      `Semestre tem ${semestre._count.relatorios} relatório(s) de aluno — não pode ser excluído`
+    ) as any;
+    err.status = 409;
+    throw err;
+  }
+
+  await prisma.semestre.delete({ where: { id } });
+  logSuccess(`Semestre excluído: ${semestre.label}`, 'semestre');
 };

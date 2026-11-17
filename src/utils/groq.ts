@@ -131,7 +131,13 @@ async function callGroqRaw(prompt: string, opts: GroqOpts = {}): Promise<string>
         continue;
       }
 
-      throw err; // erro de rede, 500 da Groq, etc — trocar de chave não resolve
+      // Erro de rede, proxy (407), 500 da Groq, etc — trocar de chave não resolve.
+      // Sobe como 502 com o motivo, senão vira um "Erro interno" sem pista.
+      const e = new Error(
+        `Falha ao chamar a Groq (${status ?? err.code ?? err.message})`
+      ) as any;
+      e.status = 502;
+      throw e;
     }
   }
 

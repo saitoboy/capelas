@@ -373,6 +373,18 @@ export const swaggerSpec = {
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 200: { description: 'Semestre encontrado' }, 404: { description: 'Não encontrado' } },
       },
+      delete: {
+        tags: ['Semestre'],
+        summary: 'Excluir semestre (admin)',
+        description: 'Apaga junto capelas, sinopses e coletas. Bloqueado (409) se houver relatório de aluno.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          204: { description: 'Semestre excluído' },
+          404: { description: 'Não encontrado' },
+          409: { description: 'Semestre tem relatórios de alunos' },
+        },
+      },
     },
     '/semestre/{id}/ativar': {
       patch: {
