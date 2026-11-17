@@ -62,7 +62,11 @@ async function postGroq(apiKey: string, prompt: string, opts: GroqOpts): Promise
   const res = await axios.post(
     'https://api.groq.com/openai/v1/chat/completions',
     {
-      model:       'llama-3.3-70b-versatile',
+      // llama-3.3-70b-versatile foi descontinuado (404). Modelo trocável por env.
+      model:       process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b',
+      // gpt-oss raciocina antes de responder e isso conta no max_tokens;
+      // 'low' deixa sobra para a resposta.
+      reasoning_effort: 'low',
       max_tokens:  opts.maxTokens  ?? 1024,
       temperature: opts.temperature ?? 0.7,
       messages: [{ role: 'user', content: prompt }],
