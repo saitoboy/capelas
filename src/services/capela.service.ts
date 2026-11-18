@@ -304,18 +304,48 @@ interface ProcessarOpts {
   gerarSinopses:   boolean;
 }
 
+/**
+ * Numera as capelas do semestre pela data (1, 2, 3…). Uma capela nova pode cair
+ * no meio do semestre, e o índice é único por semestre — então passa tudo por
+ * negativos antes, para nenhuma troca colidir no meio do caminho.
+ */
+async function renumerarPorData(semestreId: string): Promise<Map<string, number>> {
+  const capelas = await prisma.capela.findMany({
+    where:   { semestreId },
+    orderBy: [{ data: 'asc' }, { createdAt: 'asc' }],
+    select:  { id: true },
+  });
+
+  await prisma.$transaction([
+    ...capelas.map((c, i) => prisma.capela.update({ where: { id: c.id }, data: { indice: -(i + 1) } })),
+    ...capelas.map((c, i) => prisma.capela.update({ where: { id: c.id }, data: { indice: i + 1 } })),
+  ]);
+
+  return new Map(capelas.map((c, i) => [c.id, i + 1]));
+}
+
 async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<void> {
-  const itens: ColetaItem[] = [];
-  let inseridas   = 0;
-  let atualizadas = 0;
+  const itens: (ColetaItem & { capelaId?: string })[] = [];
+  let inseridas = 0;
+  // A coleta só cria: capela já salva (por vídeo ou pela data, caso das
+  // lançadas à mão) não é tocada. `atualizadas` passa a contar essas puladas.
+  let existentes = 0;
+
+  const salvas = await prisma.capela.findMany({
+    where:  { semestreId: opts.semestreId },
+    select: { videoId: true, data: true },
+  });
+  const videos = new Set(salvas.map((c) => c.videoId).filter(Boolean));
+  const datas  = new Set(salvas.map((c) => c.data.toISOString().slice(0, 10)));
 
   try {
-    const { chapels, ignorados } = await collectChapels({
+    const coletado = await collectChapels({
       publishedAfter:  opts.publishedAfter,
       publishedBefore: opts.publishedBefore,
       canal:   opts.canal,
       keyword: opts.keyword,
       weekday: opts.weekday,
+      jaExiste: (videoId, dataISO) => videos.has(videoId) || datas.has(dataISO),
 
       // Grava o progresso a cada capela — é o que o polling do front lê.
       onProgress: async ({ etapa, processadas, total }) => {
@@ -325,29 +355,21 @@ async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<v
         });
       },
     });
+    const { chapels, ignorados } = coletado;
+    existentes = coletado.existentes;
 
     await prisma.coleta.update({
       where: { id: coletaId },
-      data:  { ignorados, total: chapels.length, etapa: 'Salvando as capelas…' },
+      data:  { ignorados, atualizadas: existentes, total: chapels.length, etapa: 'Salvando as capelas…' },
     });
 
-    for (const c of chapels) {
+    for (const [n, c] of chapels.entries()) {
       try {
-        const existing = await prisma.capela.findUnique({ where: { videoId: c.videoId } });
-
-        // Numa recoleta, o que o admin preencheu à mão não pode ser apagado por
-        // um null da IA. Só sobrescreve o campo quando a IA trouxe algo.
-        const update: Record<string, unknown> = { url: c.url };
-        if (c.textoBiblico !== null) update.textoBiblico = c.textoBiblico;
-        if (c.tema         !== null) update.tema         = c.tema;
-        if (c.pregador     !== null) update.pregador     = c.pregador;
-
-        const chapel = await prisma.capela.upsert({
-          where:  { videoId: c.videoId },
-          update,
-          create: {
+        // Índice provisório fora da faixa usada; renumerarPorData acerta no fim.
+        const chapel = await prisma.capela.create({
+          data: {
             semestreId:   opts.semestreId,
-            indice:       c.indice,
+            indice:       100000 + n,
             data:         new Date(c.dataISO),
             videoId:      c.videoId,
             url:          c.url,
@@ -357,26 +379,23 @@ async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<v
             source:       'youtube',
           },
         });
+        inseridas++;
 
-        if (existing) {
-          atualizadas++;
-        } else {
-          inseridas++;
-          // Sem nenhum dado extraído, a sinopse sairia inventada. Espera o
-          // admin preencher à mão e gerar depois.
-          if (opts.gerarSinopses && temDadosParaSinopse(chapel)) {
-            await gerarSinopse(chapel.id);
-          }
+        // Sem nenhum dado extraído, a sinopse sairia inventada. Espera o
+        // admin preencher à mão e gerar depois.
+        if (opts.gerarSinopses && temDadosParaSinopse(chapel)) {
+          await gerarSinopse(chapel.id);
         }
 
         itens.push({
+          capelaId:  chapel.id,
           indice:    c.indice,
           tema:      c.tema,
           source:    c._source,
           faltando:  camposFaltando(c),
         });
       } catch (err: any) {
-        logError(`Erro ao processar índice ${c.indice}: ${err.message}`, 'chapel');
+        logError(`Erro ao processar ${c.data}: ${err.message}`, 'chapel');
         itens.push({
           indice:   c.indice,
           tema:     c.tema,
@@ -388,7 +407,7 @@ async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<v
 
       await prisma.coleta.update({
         where: { id: coletaId },
-        data:  { inseridas, atualizadas, itens: itens as any },
+        data:  { inseridas, itens: itens as any },
       });
     }
 
@@ -399,18 +418,17 @@ async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<v
         etapa:       null,
         processadas: chapels.length,
         inseridas,
-        atualizadas,
-        itens:       itens as any,
+        itens:       await comIndiceFinal(opts.semestreId, itens),
       },
     });
 
     logSuccess(
-      `Coleta concluída — inseridas: ${inseridas}, atualizadas: ${atualizadas}, ignorados: ${ignorados}`,
+      `Coleta concluída — novas: ${inseridas}, já salvas: ${existentes}, ignorados: ${ignorados}`,
       'chapel',
     );
   } catch (err: any) {
-    // O que já foi salvo continua salvo. "Coletar de novo" retoma: o upsert por
-    // videoId não refaz o que está pronto.
+    // O que já foi salvo continua salvo. "Coletar de novo" retoma: as capelas
+    // salvas são puladas, então só o que faltou é buscado.
     logError(`Coleta falhou: ${err.message}`, 'chapel', err);
 
     await prisma.coleta.update({
@@ -420,9 +438,20 @@ async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<v
         etapa:       null,
         erroMsg:     err.message,
         inseridas,
-        atualizadas,
-        itens:       itens as any,
+        itens:       await comIndiceFinal(opts.semestreId, itens).catch(() => itens as any),
       },
     });
   }
+}
+
+/** Renumera o semestre e troca, no log, o índice provisório pelo definitivo. */
+async function comIndiceFinal(
+  semestreId: string,
+  itens: (ColetaItem & { capelaId?: string })[],
+): Promise<any> {
+  const indices = await renumerarPorData(semestreId);
+  return itens.map(({ capelaId, ...item }) => ({
+    ...item,
+    indice: (capelaId && indices.get(capelaId)) || item.indice,
+  }));
 }

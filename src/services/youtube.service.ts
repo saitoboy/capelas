@@ -54,6 +54,8 @@ export interface CollectOpts {
   canal?:          string;   // "@souseminariodosul"
   keyword?:        string;
   weekday?:        number;   // 0 = domingo … 6 = sábado
+  /** Capela já salva (por vídeo ou por data) — pulada antes de gastar IA. */
+  jaExiste?: (videoId: string, dataISO: string) => boolean;
   /** Chamado a cada capela concluída — alimenta o polling do front. */
   onProgress?: (info: {
     etapa:       string;
@@ -67,6 +69,8 @@ export interface CollectResult {
   chapels: ChapelCollected[];
   /** Vídeos do canal que os filtros descartaram — sem isto, some capela em silêncio. */
   ignorados: number;
+  /** Capelas do período que já estavam salvas e foram puladas. */
+  existentes: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -299,6 +303,7 @@ export async function collectChapels(opts: CollectOpts): Promise<CollectResult> 
     keyword    = DEFAULT_KEYWORD,
     weekday    = DEFAULT_WEEKDAY,
     onProgress,
+    jaExiste = () => false,
   } = opts;
 
   await onProgress?.({ etapa: 'Localizando o canal no YouTube…', processadas: 0, total: 0 });
@@ -313,7 +318,7 @@ export async function collectChapels(opts: CollectOpts): Promise<CollectResult> 
 
   // Vídeos descartados aqui não somem em silêncio: o total volta como
   // `ignorados` e a tela do admin mostra "N vídeos ignorados".
-  const chapels = streams
+  const doPeriodo = streams
     .filter(v => {
       const title = v.snippet.title ?? '';
       if (!title.includes(keyword)) return false;
@@ -326,12 +331,19 @@ export async function collectChapels(opts: CollectOpts): Promise<CollectResult> 
       return da.getTime() - db.getTime();
     });
 
-  const ignorados = streams.length - chapels.length;
-  const total     = chapels.length;
+  const ignorados = streams.length - doPeriodo.length;
 
-  logSuccess(`Capelas identificadas: ${total} (ignorados: ${ignorados})`, 'youtube');
+  // Só as novas seguem para a IA: as já salvas (inclusive editadas à mão)
+  // não são tocadas.
+  const chapels = doPeriodo.filter(
+    (v: any) => !jaExiste(v.id.videoId, toISODate(parseDateFromTitle(v.snippet.title)!)),
+  );
+  const existentes = doPeriodo.length - chapels.length;
+  const total      = chapels.length;
 
-  await onProgress?.({ etapa: `${total} capelas identificadas.`, processadas: 0, total });
+  logSuccess(`Capelas novas: ${total} (já salvas: ${existentes}, ignorados: ${ignorados})`, 'youtube');
+
+  await onProgress?.({ etapa: `${total} capelas novas identificadas.`, processadas: 0, total });
 
   const result: ChapelCollected[] = [];
 
@@ -372,5 +384,5 @@ export async function collectChapels(opts: CollectOpts): Promise<CollectResult> 
     logSuccess(`[${i + 1}/${total}] ${formatDate(date)} — ${extracted._source}`, 'youtube');
   }
 
-  return { chapels: result, ignorados };
+  return { chapels: result, ignorados, existentes };
 }

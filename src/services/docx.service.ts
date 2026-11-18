@@ -87,12 +87,14 @@ function preencherTexto(xml: string, texto: string): string {
   const fim = xml.indexOf('</w:p>', pos) + '</w:p>'.length;
 
   // Mesmo recuo do modelo, mas em cor de texto normal e sem o fundo de "placeholder".
+  // Recuo de 1ª linha de 1,25 cm (709 twips), como pede a ABNT.
   const molde = xml
     .slice(ini, fim)
     .replace(/94a3b8/g, '1e293b')
     .replace(/<w:shd w:fill="fafafa" w:val="clear"\/>/g, '')
     .replace(/<w:sz w:val="18"\/><w:szCs w:val="18"\/>/g, '<w:sz w:val="22"/><w:szCs w:val="22"/>')
-    .replace('<w:rPr>', '<w:jc w:val="both"/><w:rPr>');
+    .replace('<w:rPr>', '<w:jc w:val="both"/><w:rPr>')
+    .replace(/w:firstLine="0"/, 'w:firstLine="709"');
 
   const paragrafos = texto
     .split('\n')
