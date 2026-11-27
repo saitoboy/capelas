@@ -31,6 +31,14 @@ import { CapelaAva, CapelaCriadaAva, SincronizacaoAvaResultado } from '../types'
 
 const JACAD_BASE = process.env.AVA_JACAD_BASE ?? 'https://batistas.jacad.com.br';
 const D2L_BASE   = process.env.AVA_D2L_BASE   ?? 'https://batistas.brightspace.com';
+// O portal do aluno tem dois caminhos que respondem a mesma tela:
+// /academico/aluno-v2/ (context path do servidor) e /aluno-v2/login (o real,
+// que o aluno usa no navegador). Usar o REAL importa: pelo /academico, o
+// JSESSIONID nasce com path=/academico e NÃO viaja no POST para /aluno-v2/... —
+// a sessão não persiste, o JACAD devolve o form como se a senha estivesse
+// errada e, nas chamadas seguintes, entra em loop de redirect.
+const URL_LOGIN = `${JACAD_BASE}/aluno-v2/login`;
+const URL_HOME  = `${JACAD_BASE}/aluno-v2/`;
 // Saem da URL da unidade "Capelas" no AVA: /d2l/le/lessons/43874/units/391427
 const ORG_UNIT   = process.env.AVA_ORG_UNIT   ?? '43874';
 const UNIT_ID    = process.env.AVA_UNIT       ?? '391427';
@@ -76,8 +84,14 @@ function criarCliente(jar?: CookieJar): AxiosInstance {
  * Devolve o HTML da página pós-login (home do portal ou tela de erro).
  */
 async function loginJacad(client: AxiosInstance, login: string, senha: string): Promise<string> {
-  const urlLogin = `${JACAD_BASE}/academico/aluno-v2/`;
-  const pagina = await client.get(urlLogin);
+  const pagina = await client.get(URL_LOGIN).catch((e: any) => {
+    // O loop de redirect é o sintoma da sessão que não persiste entre caminhos
+    // (ver comentário do URL_LOGIN). Reportar a etapa, não o stack do axios.
+    if (e?.code === 'ERR_FR_TOO_MANY_REDIRECTS') {
+      throw erroAva('O JACAD entrou em loop de redirecionamento na tela de login — a sessão não está persistindo entre os caminhos do portal. Tente de novo; se persistir, fale com o suporte.');
+    }
+    throw e;
+  });
   const html = String(pagina.data);
 
   // O action pode vir com ;jsessionid=... embutido — usar como vem.
@@ -92,7 +106,7 @@ async function loginJacad(client: AxiosInstance, login: string, senha: string): 
   });
   const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
-  let resp = await client.post(new URL(action, urlLogin).toString(), body.toString(), {
+  let resp = await client.post(new URL(action, URL_LOGIN).toString(), body.toString(), {
     headers, validateStatus: () => true,
   });
 
@@ -118,7 +132,8 @@ async function loginJacad(client: AxiosInstance, login: string, senha: string): 
 // ──────────────────────────────────────────────────────────────────────────────
 
 /** Links do AVA na home do portal: diretos (brightspace.com) ou rotas internas
- *  que redirecionam para lá. Botões JS (onclick) também entram na varredura. */
+ *  que redirecionam para lá. O real é /aluno-v2/d2l/autenticacao/sso-redirect —
+ *  por isso o padrão inclui d2l e sso, não só "ava". Botões JS entram também. */
 function linksAva(homeHtml: string): string[] {
   const urls = new Set<string>();
 
@@ -127,12 +142,16 @@ function linksAva(homeHtml: string): string[] {
   }
   for (const m of homeHtml.matchAll(/(?:href|onclick)\s*=\s*"([^"]+)"/gi)) {
     const alvo = m[1];
-    const interno = alvo.match(/(?:location(?:\.href)?\s*=\s*)?['"]?([^'";]*(?:ava|ambiente-virtual)[^'";]*)['"]?/i);
+    const interno = alvo.match(/(?:location(?:\.href)?\s*=\s*)?['"]?([^'";]*(?:ava|ambiente-virtual|d2l|sso)[^'";]*)['"]?/i);
     if (interno && !alvo.includes('brightspace.com')) urls.add(interno[1]);
   }
 
   return [...urls];
 }
+
+/** O caminho que o painel usa quando o aluno clica no AVA — confirmado pelo
+ *  usuário. Fica como candidato extra mesmo se a home não listar o link. */
+const SSO_CONHECIDO = '/aluno-v2/d2l/autenticacao/sso-redirect';
 
 async function abrirSessaoD2L(client: AxiosInstance, candidatos: string[]): Promise<void> {
   if (candidatos.length === 0) {
@@ -257,7 +276,7 @@ export const conectarPortal = async (ra: string, senha: string, email?: string, 
     try {
       const homeHtml = await loginJacad(client, login, senha);
       // SSO logo na conexão — na sync basta o lerToc direto.
-      await abrirSessaoD2L(client, linksAva(homeHtml)).catch((e) =>
+      await abrirSessaoD2L(client, [SSO_CONHECIDO, ...linksAva(homeHtml)]).catch((e) =>
         logWarning(`Login no portal OK, mas o SSO falhou agora (a sync tenta refazer): ${e.message}`, 'ava'),
       );
       await salvarSessao(ra, client, login);
@@ -311,13 +330,13 @@ async function obterTocComSessao(client: AxiosInstance): Promise<any> {
     logInfo('Sessão do Brightspace não serviu — tentando refazer o SSO pelo portal', 'ava');
   }
 
-  const resp = await client.get(`${JACAD_BASE}/academico/aluno-v2/`, { validateStatus: () => true });
+  const resp = await client.get(URL_HOME, { validateStatus: () => true });
   const homeHtml = String(resp.data);
   if (homeHtml.includes('name="login.password"')) {
     throw erroAva('A sessão do portal expirou. Reconecte em POST /ava/conectar informando a senha do portal.', 401);
   }
 
-  await abrirSessaoD2L(client, linksAva(homeHtml));
+  await abrirSessaoD2L(client, [SSO_CONHECIDO, ...linksAva(homeHtml)]);
   return await lerToc(client);
 }
 
