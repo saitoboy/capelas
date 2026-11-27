@@ -52,6 +52,17 @@ export interface AdminCreateUsuarioBody {
   senha: string;
   curso: Curso;
   isAdmin?: boolean;
+  // A partir do cadastro "conta do JACAD": a senha deve ser a do portal do AVA.
+  loginPortal?: string;  // CPF/e-mail do portal, para quem não loga lá pelo RA
+  groqKey?: string;      // chave gsk_ criada em console.groq.com/keys
+}
+
+/** Resposta do POST /usuario — avisos de portal/chave não bloqueiam a criação. */
+export interface AdminCreateUsuarioRes extends UsuarioPublico {
+  avaConectado: boolean;
+  avisoAva: string | null;
+  chaveGroqCadastrada: boolean;
+  avisoGroq: string | null;
 }
 
 // PATCH: todo campo é opcional. Senha fica de fora — tem rota própria.
@@ -160,6 +171,50 @@ export interface ColetarCapelasBody {
   keyword?:         string;  // "Devoção na Capela"
   weekday?:         number;  // 0 = domingo … 6 = sábado
   gerarSinopses?:   boolean; // default: true
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SINCRONIZAÇÃO COM O AVA (JACAD + Brightspace)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export interface SincronizarAvaBody {
+  semestreId: string;
+}
+
+/** Conexão do portal: a senha vai no body e NUNCA é guardada —
+ *  só os cookies de sessão, cifrados (model AvaSessao).
+ *  `login` é opcional: o identificador do portal (CPF, RA ou e-mail) para quem
+ *  não loga lá pelo RA do app. Salvo cifrado após a primeira conexão bem-sucedida. */
+export interface ConectarAvaBody {
+  senha: string;
+  login?: string;
+}
+
+/** O que GET /ava/conectar devolve — sem nunca expor os cookies. */
+export interface AvaSessaoPublica {
+  conectado: boolean;
+  conectadoEm: Date | null;  // última conexão/reconexão bem-sucedida
+}
+
+/** Um tópico de capela lido no sumário do AVA. */
+export interface CapelaAva {
+  titulo:  string;  // "Devoção na Capela - 04/08/2026"
+  dataISO: string;  // "2026-08-04"
+}
+
+export interface CapelaCriadaAva extends CapelaAva {
+  id:     string;
+  indice: number;   // índice definitivo após a renumeração por data
+}
+
+export interface SincronizacaoAvaResultado {
+  semestreId:      string;
+  totalAva:        number;  // capelas do AVA dentro do período do semestre
+  foraDoSemestre:  number;  // capelas do AVA fora do período (ignoradas)
+  jaExistiam:      number;  // já estavam no app (cruzamento por data) — não tocadas
+  criadas:         CapelaCriadaAva[];
+  /** Datas (ISO) que estão no app mas não no AVA. Só informativo — nada é apagado. */
+  soNoApp:         string[];
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

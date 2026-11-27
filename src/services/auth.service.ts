@@ -2,9 +2,25 @@ import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import prisma from '../utils/prisma';
 import { RegisterBody, LoginBody, UsuarioPublico, JwtPayload } from '../types';
-import { logSuccess, logWarning } from '../utils/logger';
+import { logSuccess, logWarning, logInfo } from '../utils/logger';
+import { conectarPortal } from './ava.service';
 
 const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET!);
+
+/**
+ * A senha do app vale no portal JACAD (login aceita RA/e-mail). Aproveita o
+ * instante em que a senha original está na memória para logar lá também e
+ * salvar a sessão cifrada — depois disso o app nunca mais pede a senha do
+ * portal, até a sessão expirar (aí o usuário reconecta em POST /ava/conectar).
+ * Falha do portal NÃO bloqueia o login do app: roda em background e só loga.
+ */
+const conectarPortalEmBackground = (ra: string, senha: string, email?: string): void => {
+  setImmediate(() => {
+    conectarPortal(ra, senha, email).catch((e) =>
+      logInfo(`Conexão automática ao portal não funcionou agora (${e.message}) — o login do app seguiu normal. Reconectar depois em POST /ava/conectar.`, 'ava'),
+    );
+  });
+};
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -38,6 +54,7 @@ export const registrar = async (body: RegisterBody): Promise<LoginResult> => {
     .sign(getSecret());
 
   logSuccess(`Usuário registrado: ${ra}`, 'auth');
+  conectarPortalEmBackground(ra, senha, email);
   return { token, usuario: { ra: usuario.ra, nome: usuario.nome, email: usuario.email, curso: usuario.curso, isAdmin: usuario.isAdmin } };
 };
 
@@ -72,6 +89,7 @@ export const autenticar = async (body: LoginBody): Promise<LoginResult> => {
     .sign(getSecret());
 
   logSuccess(`Login realizado: ${ra}`, 'auth');
+  conectarPortalEmBackground(ra, senha, usuario.email);
   return {
     token,
     usuario: { ra: usuario.ra, nome: usuario.nome, email: usuario.email, curso: usuario.curso, isAdmin: usuario.isAdmin },

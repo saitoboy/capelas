@@ -19,6 +19,7 @@ const emojis = {
   persona: '🧠',
   relatorio: '📄',
   youtube: '▶️',
+  ava: '🎓',
   groq: '🤖',
   docx: '📝',
   sinopse: '📖',

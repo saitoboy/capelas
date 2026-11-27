@@ -309,7 +309,7 @@ interface ProcessarOpts {
  * no meio do semestre, e o índice é único por semestre — então passa tudo por
  * negativos antes, para nenhuma troca colidir no meio do caminho.
  */
-async function renumerarPorData(semestreId: string): Promise<Map<string, number>> {
+export async function renumerarPorData(semestreId: string): Promise<Map<string, number>> {
   const capelas = await prisma.capela.findMany({
     where:   { semestreId },
     orderBy: [{ data: 'asc' }, { createdAt: 'asc' }],

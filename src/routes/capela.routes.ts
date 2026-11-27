@@ -4,6 +4,7 @@ import {
   getCapelaById,
   postCapelaManual,
   postColetarCapelas,
+  postSincronizarAva,
   getColeta,
   getColetas,
   patchCapela,
@@ -16,6 +17,7 @@ const router = Router();
 
 // Rotas admin — declaradas antes de '/:id' para que 'coletar' não seja lido como id
 router.post('/coletar',     authMiddleware, adminOnly, postColetarCapelas);  // POST  /capela/coletar    → 202
+router.post('/sincronizar-ava', authMiddleware, adminOnly, postSincronizarAva); // POST /capela/sincronizar-ava → 200 (diff)
 router.get('/coletar',      authMiddleware, adminOnly, getColetas);          // GET   /capela/coletar?semestreId= → histórico
 router.get('/coletar/:id',  authMiddleware, adminOnly, getColeta);           // GET   /capela/coletar/:id → progresso
 router.post('/manual',      authMiddleware, adminOnly, postCapelaManual);    // POST  /capela/manual

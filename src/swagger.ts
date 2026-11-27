@@ -105,6 +105,15 @@ export const swaggerSpec = {
         },
       },
 
+      AvaSessao: {
+        type: 'object',
+        description: 'Os cookies de sessão nunca voltam aqui — só o estado.',
+        properties: {
+          conectado:   { type: 'boolean', example: true },
+          conectadoEm: { type: 'string', format: 'date-time', nullable: true },
+        },
+      },
+
       GroqKey: {
         type: 'object',
         description: 'A chave em si nunca volta — só o preview mascarado.',
@@ -217,6 +226,9 @@ export const swaggerSpec = {
       post: {
         tags: ['Usuário'],
         summary: 'Criar usuário (admin)',
+        description:
+          'Cria o usuário e já monta o acesso: tenta conectar o portal JACAD com o loginPortal (CPF) ou o RA e a senha informada — que deve ser a senha do AVA — e cadastra a chave da Groq se vier em groqKey (criada em console.groq.com/keys). ' +
+          'Falha de portal ou chave NÃO cancela a criação: volta em avisoAva/avisoGroq para o admin corrigir.',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,
@@ -229,9 +241,11 @@ export const swaggerSpec = {
                   ra:      { type: 'string', example: '251000841' },
                   nome:    { type: 'string', example: 'Débora Silva' },
                   email:   { type: 'string', format: 'email', example: 'debora@email.com' },
-                  senha:   { type: 'string', minLength: 6, example: 'trocar123' },
+                  senha:   { type: 'string', minLength: 6, example: 'senhaDoAva123', description: 'A senha do app — do portal do AVA para o login conectar de primeira' },
                   curso:   { type: 'string', enum: ['TEOLOGIA'], example: 'TEOLOGIA' },
                   isAdmin: { type: 'boolean', default: false },
+                  loginPortal: { type: 'string', example: '123.456.789-00', description: 'Opcional: CPF/e-mail do portal JACAD, quando o RA do app não serve lá. Salvo cifrado como login do portal.' },
+                  groqKey: { type: 'string', example: 'gsk_...', description: 'Opcional: chave da Groq criada pelo novo contato em console.groq.com/keys' },
                 },
               },
             },
@@ -239,8 +253,25 @@ export const swaggerSpec = {
         },
         responses: {
           201: {
-            description: 'Usuário criado',
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/Usuario' } } },
+            description: 'Usuário criado (com status da conexão do portal e da chave da Groq)',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/Usuario' },
+                    {
+                      type: 'object',
+                      properties: {
+                        avaConectado:         { type: 'boolean' },
+                        avisoAva:             { type: 'string', nullable: true },
+                        chaveGroqCadastrada:  { type: 'boolean' },
+                        avisoGroq:            { type: 'string', nullable: true },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
           },
           400: { description: 'Campos faltando ou senha curta' },
           403: { description: 'Acesso restrito a administradores' },
@@ -471,6 +502,70 @@ export const swaggerSpec = {
         },
       },
     },
+    '/capela/sincronizar-ava': {
+      post: {
+        tags: ['Capela'],
+        summary: 'Sincronizar capelas com o AVA da faculdade (admin)',
+        description:
+          'Faz login no portal JACAD (credenciais AVA_LOGIN/AVA_SENHA do servidor), segue o SSO para o Brightspace e lê o sumário do curso (AVA_ORG_UNIT/AVA_UNIT). ' +
+          'Cria as capelas que só existem no AVA (cruzamento por data, source "ava", sem vídeo — completar depois com PATCH /capela/{id}) e renumera o semestre. ' +
+          'Responde síncrono com o diff: criadas, já existentes e datas que só existem no app (nada é apagado).',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['semestreId'],
+                properties: {
+                  semestreId: { type: 'string', format: 'uuid' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Diff da sincronização',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    semestreId:     { type: 'string', format: 'uuid' },
+                    totalAva:       { type: 'integer', example: 17, description: 'Capelas do AVA dentro do semestre' },
+                    foraDoSemestre: { type: 'integer', example: 0 },
+                    jaExistiam:     { type: 'integer', example: 16 },
+                    criadas: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id:      { type: 'string', format: 'uuid' },
+                          titulo:  { type: 'string', example: 'Devoção na Capela - 04/08/2026' },
+                          dataISO: { type: 'string', example: '2026-08-04' },
+                          indice:  { type: 'integer', example: 17 },
+                        },
+                      },
+                    },
+                    soNoApp: {
+                      type: 'array',
+                      items: { type: 'string', example: '2026-03-10' },
+                      description: 'Datas no app que o AVA não lista (informativo; nada é apagado)',
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'semestreId faltando, credenciais AVA_* não configuradas ou etapa da integração falhou (a mensagem diz qual)' },
+          401: { description: 'JACAD recusou o login — revisar AVA_LOGIN/AVA_SENHA' },
+          403: { description: 'Acesso negado' },
+          404: { description: 'Semestre não encontrado' },
+        },
+      },
+    },
     '/capela/coletar/{id}': {
       get: {
         tags: ['Capela'],
@@ -572,6 +667,59 @@ export const swaggerSpec = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { 204: { description: 'Deletada' }, 403: { description: 'Acesso negado' } },
+      },
+    },
+
+    /* ─── AVA (portal da faculdade) ─────────────────────────── */
+    '/ava/conectar': {
+      post: {
+        tags: ['AVA'],
+        summary: 'Conectar o portal do AVA (logado)',
+        description:
+          'Valida a senha informada no portal JACAD e salva só os COOKIES de sessão, cifrados em repouso — a senha nunca é guardada. ' +
+          'Acontece automaticamente no login do app; esta rota serve para reconectar quando a sessão do portal expira, ' +
+          'ou para conectar com o login do portal (CPF) quando o RA do app não serve lá.',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['senha'],
+                properties: {
+                  senha: { type: 'string', example: 'suaSenhaDoPortal' },
+                  login: { type: 'string', example: '123.456.789-00', description: 'Opcional: CPF/RA/e-mail do portal. O que funcionar fica salvo (cifrado) para as próximas reconexões.' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Conectado (ou reconectado)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/AvaSessao' } } },
+          },
+          400: { description: 'Senha faltando ou portal respondeu inesperadamente' },
+          401: { description: 'Portal recusou as credenciais' },
+        },
+      },
+      get: {
+        tags: ['AVA'],
+        summary: 'Status da conexão com o portal (logado)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: {
+            description: 'Status da sessão do usuário',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/AvaSessao' } } },
+          },
+        },
+      },
+      delete: {
+        tags: ['AVA'],
+        summary: 'Desconectar o portal (logado)',
+        security: [{ bearerAuth: [] }],
+        responses: { 204: { description: 'Sessão removida' } },
       },
     },
 

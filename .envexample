@@ -31,6 +31,18 @@ CHANNEL_HANDLE=@souseminariodosul
 CHAPEL_KEYWORD=Devoção na Capela
 CHAPEL_WEEKDAY=2
 
+# ─── AVA da faculdade (Portal JACAD + Brightspace) ─────────────────────────────
+# A conexão é por usuário: o login do app já conecta o portal com a senha que o
+# usuário digitou (que nunca é guardada — só os cookies de sessão, cifrados).
+# Credenciais de AVA no .env não existem mais; reconexão manual: POST /ava/conectar.
+# Da URL da unidade "Capelas" no AVA:
+# https://batistas.brightspace.com/d2l/le/lessons/43874/units/391427
+AVA_ORG_UNIT=43874
+AVA_UNIT=391427
+# Só mude se a faculdade trocar os domínios:
+# AVA_JACAD_BASE=https://batistas.jacad.com.br
+# AVA_D2L_BASE=https://batistas.brightspace.com
+
 # ─── Logo ─────────────────────────────────────────────────────────────────────
 LOGO_URL=https://curriculo.digiescola.muriae.mg.gov.br/wp-content/uploads/2026/06/logo-fabat.png
 

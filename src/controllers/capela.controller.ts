@@ -9,8 +9,9 @@ import {
   buscarColeta,
   listarColetas,
 } from '../services/capela.service';
-import { CreateCapelaManualBody, ColetarCapelasBody, UpdateCapelaBody } from '../types';
+import { CreateCapelaManualBody, ColetarCapelasBody, UpdateCapelaBody, SincronizarAvaBody, AuthRequest } from '../types';
 import { logError } from '../utils/logger';
+import { sincronizarComAva } from '../services/ava.service';
 
 const handleError = (res: Response, err: unknown): void => {
   const e = err as any;
@@ -98,6 +99,31 @@ export const postColetarCapelas = async (req: Request, res: Response): Promise<v
 
     const coleta = await iniciarColeta(body);
     res.status(202).json(coleta);
+  } catch (err) {
+    handleError(res, err);
+  }
+};
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sincroniza com o AVA (login JACAD → SSO Brightspace). Diferente da coleta do
+ * YouTube, não gasta IA: são ~5 requests HTTP, então responde síncrono (200)
+ * com o diff completo. Cria só o que falta — capela existente nunca é tocada.
+ */
+export const postSincronizarAva = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { semestreId } = req.body as SincronizarAvaBody;
+    if (!semestreId) {
+      res.status(400).json({ mensagem: 'Campo obrigatório: semestreId' });
+      return;
+    }
+
+    // A sync usa a sessão do portal de quem chama (AuthRequest.user vem do
+    // authMiddleware) — nenhuma credencial global de AVA no servidor.
+    const auth = req as AuthRequest;
+    const resultado = await sincronizarComAva(semestreId, auth.user!.sub);
+    res.json(resultado);
   } catch (err) {
     handleError(res, err);
   }

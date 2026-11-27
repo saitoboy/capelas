@@ -24,8 +24,31 @@ model Usuario {
   persona    Persona?
   relatorios Relatorio[]
   groqKeys   GroqKey[]
+  avaSessao  AvaSessao?
 
   @@map("usuarios")
+}
+
+// ─── SESSÃO DO AVA ────────────────────────────────────────────────────────────
+// Cookies de sessão do portal JACAD + Brightspace, por usuário, cifrados em
+// repouso (AES-256-GCM, mesmo esquema das chaves da Groq). A senha do portal
+// nunca é guardada — o login do app tenta logar no portal e salva os cookies;
+// expirou, o usuário reconecta informando a senha de novo (POST /ava/conectar).
+model AvaSessao {
+  id             String   @id @default(uuid())
+  alunoRa        String   @unique @map("aluno_ra") @db.VarChar(20)
+  cookiesEnc     String   @map("cookies_enc")
+  // O login do portal que funcionou na conexão (CPF/RA/e-mail), cifrado — os
+  // usuários logavam no app com RA + senha padrão, mas o portal pode exigir
+  // outro identificador. Salvo aqui, o auto-conectar do login do app já sabe
+  // usar o login certo, sem o usuário digitar de novo.
+  loginPortalEnc String?  @map("login_portal_enc") @db.VarChar(300)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  aluno Usuario @relation(fields: [alunoRa], references: [ra], onDelete: Cascade)
+
+  @@map("ava_sessoes")
 }
 
 // ─── PERSONA MBTI ─────────────────────────────────────────────────────────────

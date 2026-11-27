@@ -2,10 +2,13 @@ import bcrypt from 'bcryptjs';
 import prisma from '../utils/prisma';
 import {
   AdminCreateUsuarioBody,
+  AdminCreateUsuarioRes,
   AdminUpdateUsuarioBody,
   UsuarioPublico,
 } from '../types';
-import { logSuccess } from '../utils/logger';
+import { logSuccess, logWarning } from '../utils/logger';
+import { conectarPortal } from './ava.service';
+import { criarChave } from './groqKey.service';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Gestão de usuários pelo admin. A senha nunca sai daqui — `PUBLICO` é o recorte
@@ -36,9 +39,17 @@ export const listarUsuarios = async (): Promise<UsuarioPublico[]> =>
 
 // ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Cria o usuário e, na mesma batida, monta o acesso dele:
+ * - conecta o portal JACAD com o login informado (CPF) ou com o RA, e a senha
+ *   (que a partir de agora é a senha do AVA) — sessão salva cifrada;
+ * - cadastra a chave da Groq criada pelo novo contato em console.groq.com/keys.
+ * Falha do portal ou da chave NÃO desfaz a criação: voltam como avisos para o
+ * admin corrigir (senhas divergentes, chave inválida...) sem recriar usuário.
+ */
 export const criarUsuario = async (
   body: AdminCreateUsuarioBody,
-): Promise<UsuarioPublico> => {
+): Promise<AdminCreateUsuarioRes> => {
   const ra = body.ra?.trim();
   const nome = body.nome?.trim();
   const email = body.email?.trim().toLowerCase();
@@ -66,7 +77,30 @@ export const criarUsuario = async (
   });
 
   logSuccess(`Usuário criado pelo admin: ${ra}`, 'usuario');
-  return usuario;
+
+  let avaConectado = false;
+  let avisoAva: string | null = null;
+  try {
+    await conectarPortal(ra, senha, email, body.loginPortal);
+    avaConectado = true;
+  } catch (e: any) {
+    avisoAva = e.message;
+    logWarning(`Usuário ${ra} criado, mas o portal não conectou: ${e.message}`, 'usuario');
+  }
+
+  let chaveGroqCadastrada = false;
+  let avisoGroq: string | null = null;
+  if (body.groqKey) {
+    try {
+      await criarChave(ra, { label: `chave de ${nome}`, key: body.groqKey.trim() });
+      chaveGroqCadastrada = true;
+    } catch (e: any) {
+      avisoGroq = e.message;
+      logWarning(`Usuário ${ra} criado, mas a chave da Groq não foi cadastrada: ${e.message}`, 'usuario');
+    }
+  }
+
+  return { ...usuario, avaConectado, avisoAva, chaveGroqCadastrada, avisoGroq };
 };
 
 // ──────────────────────────────────────────────────────────────────────────────

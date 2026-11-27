@@ -5,3 +5,5 @@ build/
 generated/
 src/docs/
 .easypanel.env
+*.log
+.playwright-mcp/
