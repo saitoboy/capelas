@@ -11,9 +11,12 @@ import { AuthRequest } from '../types';
 const handleError = (res: Response, err: unknown): void => {
   const e = err as any;
   const status: number = e?.status ?? 500;
-  const mensagem: string = status < 500 ? e.message : 'Erro interno do servidor';
+  // Diferente dos outros controllers: aqui a mensagem vai ao front mesmo em
+  // 500. As exceções do AVA vêm do nosso próprio código (rede, criptografia,
+  // parsing) e a causa precisa ser visível para o admin resolver — senha errada
+  // e proxy corporativo não podem virar só "erro interno".
   if (status >= 500) logError(e.message, 'ava', e);
-  res.status(status).json({ mensagem });
+  res.status(status).json({ mensagem: e.message ?? 'Erro interno do servidor' });
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
