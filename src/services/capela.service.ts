@@ -7,9 +7,11 @@ import {
   ColetaPublica,
   ColetaItem,
 } from '../types';
-import { logSuccess, logError } from '../utils/logger';
+import { logSuccess, logError, logWarning } from '../utils/logger';
 import { collectChapels } from './youtube.service';
 import { gerarSinopse } from './sinopse.service';
+import { sincronizarComAva } from './ava.service';
+import { renumerarPorData } from '../utils/renumerar';
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -240,7 +242,7 @@ export const listarColetas = async (semestreId: string): Promise<ColetaPublica[]
  * Cria o registro da coleta e dispara o processamento em background.
  * Responde imediatamente — o chamador devolve 202.
  */
-export const iniciarColeta = async (body: ColetarCapelasBody): Promise<ColetaPublica> => {
+export const iniciarColeta = async (body: ColetarCapelasBody, ra?: string): Promise<ColetaPublica> => {
   const { semestreId } = body;
 
   const semestre = await prisma.semestre.findUnique({ where: { id: semestreId } });
@@ -286,6 +288,7 @@ export const iniciarColeta = async (body: ColetarCapelasBody): Promise<ColetaPub
       keyword:       body.keyword,
       weekday:       body.weekday,
       gerarSinopses: body.gerarSinopses ?? true,
+      ra,
     });
   });
 
@@ -302,26 +305,9 @@ interface ProcessarOpts {
   keyword?:        string;
   weekday?:        number;
   gerarSinopses:   boolean;
-}
-
-/**
- * Numera as capelas do semestre pela data (1, 2, 3…). Uma capela nova pode cair
- * no meio do semestre, e o índice é único por semestre — então passa tudo por
- * negativos antes, para nenhuma troca colidir no meio do caminho.
- */
-export async function renumerarPorData(semestreId: string): Promise<Map<string, number>> {
-  const capelas = await prisma.capela.findMany({
-    where:   { semestreId },
-    orderBy: [{ data: 'asc' }, { createdAt: 'asc' }],
-    select:  { id: true },
-  });
-
-  await prisma.$transaction([
-    ...capelas.map((c, i) => prisma.capela.update({ where: { id: c.id }, data: { indice: -(i + 1) } })),
-    ...capelas.map((c, i) => prisma.capela.update({ where: { id: c.id }, data: { indice: i + 1 } })),
-  ]);
-
-  return new Map(capelas.map((c, i) => [c.id, i + 1]));
+  /** RA de quem disparou — com sessão do portal salva, a coleta fecha o
+   *  intervalo conferindo o AVA no fim (cria as capelas que só existem lá). */
+  ra?:             string;
 }
 
 async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<void> {
@@ -409,6 +395,44 @@ async function processarColeta(coletaId: string, opts: ProcessarOpts): Promise<v
         where: { id: coletaId },
         data:  { inseridas, itens: itens as any },
       });
+    }
+
+    // ─── AVA ──────────────────────────────────────────────────────────────────
+    // Fecha o buraco entre o YouTube e o AVA: o culto que não subiu pro canal
+    // existe no AVA. Com a sessão do portal de quem disparou a coleta, lê a
+    // unidade "Capelas" e cria as datas faltantes — no log, cada uma aparece
+    // como "sem tema" (tema/pregador do AVA não existem; preencher à mão).
+    if (opts.ra) {
+      await prisma.coleta.update({
+        where: { id: coletaId },
+        data:  { etapa: 'Conferindo o AVA da faculdade…' },
+      });
+
+      try {
+        const r = await sincronizarComAva(opts.semestreId, opts.ra);
+        for (const c of r.criadas) {
+          itens.push({
+            capelaId: c.id,
+            indice:   c.indice,   // o próprio sync já renumerou o semestre
+            tema:     null,
+            source:   'ava',
+            faltando: ['tema', 'textoBiblico', 'pregador'],
+          });
+        }
+        inseridas += r.criadas.length;
+        logSuccess(`Coleta + AVA: ${r.criadas.length} capela(s) criada(s) do AVA`, 'chapel');
+      } catch (e: any) {
+        // Sessão expirada/ausente não derruba a coleta — entra no log como
+        // linha de erro e o admin resolve na tela "AVA da faculdade".
+        logWarning(`Sync do AVA não rodou na coleta: ${e.message}`, 'ava');
+        itens.push({
+          indice:   -1,
+          tema:     'Conferência do AVA',
+          source:   'ava',
+          faltando: [],
+          erro:     e.message,
+        });
+      }
     }
 
     await prisma.coleta.update({

@@ -4,7 +4,7 @@ import { CookieJar } from 'tough-cookie';
 import prisma from '../utils/prisma';
 import { encrypt, decrypt } from '../utils/crypto';
 import { logInfo, logSuccess, logWarning } from '../utils/logger';
-import { renumerarPorData } from './capela.service';
+import { renumerarPorData } from '../utils/renumerar';
 import { CapelaAva, CapelaCriadaAva, SincronizacaoAvaResultado } from '../types';
 
 // ──────────────────────────────────────────────────────────────────────────────

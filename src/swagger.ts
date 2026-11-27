@@ -451,7 +451,10 @@ export const swaggerSpec = {
       post: {
         tags: ['Capela'],
         summary: 'Iniciar coleta do YouTube (admin)',
-        description: 'Dispara o job e responde 202 na hora — o trabalho roda em background. Campos omitidos caem nas datas do semestre e nos defaults do servidor.',
+        description:
+          'Dispara o job e responde 202 na hora — o trabalho roda em background. Campos omitidos caem nas datas do semestre e nos defaults do servidor. ' +
+          'No fim, o job confere o AVA da faculdade com a sessão do portal de quem disparou: cria as capelas que só existem lá (aparecem no log como "sem tema"); ' +
+          'portal desconectado não derruba a coleta — entra aviso no log e o admin resolve na tela "AVA da faculdade".',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,

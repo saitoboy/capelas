@@ -97,7 +97,9 @@ export const postColetarCapelas = async (req: Request, res: Response): Promise<v
       body.weekday = dia;
     }
 
-    const coleta = await iniciarColeta(body);
+    // O RA vai no job: no fim da coleta, a conferência do AVA usa a sessão do
+    // portal de quem disparou (nenhuma credencial global de AVA no servidor).
+    const coleta = await iniciarColeta(body, (req as AuthRequest).user?.sub);
     res.status(202).json(coleta);
   } catch (err) {
     handleError(res, err);
